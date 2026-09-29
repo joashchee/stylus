@@ -1,0 +1,330 @@
+/* Stylus component styles. The shared pieces (header, buttons, panels,
+   messages, progress bar, dialog, App Testing) match Diskette's App.css. */
+
+.app {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 28px 20px 60px;
+}
+
+header.top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 22px;
+  flex-wrap: nowrap;
+  gap: 10px;
+}
+.title-group {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+header.top h1 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+header.top h1 span.accent { color: var(--accent); }
+.app-mark {
+  display: inline-flex;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+}
+.app-mark svg { width: 100%; height: 100%; }
+.version-tag {
+  font-size: 11px;
+  font-weight: 400;
+  font-family: var(--font-mono);
+  color: var(--muted);
+}
+header.top p {
+  color: var(--muted);
+  font-size: 13px;
+  flex-basis: 100%;
+}
+.header-actions { display: flex; align-items: flex-start; gap: 8px; flex: 0 0 auto; }
+header.top .header-actions { margin-left: auto; }
+
+/* Gear menu (same as Diskette's) */
+.gear-menu-wrap { position: relative; flex: 0 0 auto; }
+.gear-btn { position: relative; }
+.gear-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  min-width: 260px;
+  max-width: calc(100vw - 24px);
+  padding: 6px;
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+}
+.gear-menu.open { display: flex; }
+.gear-menu .menu-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--text);
+  text-align: left;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  padding: 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 40px;
+}
+.gear-menu .menu-item:hover,
+.gear-menu .menu-item:focus-within { background: var(--panel-2); }
+.gear-menu .menu-item svg { width: 15px; height: 15px; flex-shrink: 0; color: var(--muted); }
+.gear-menu .menu-item-checkbox { gap: 10px; }
+.gear-menu .menu-item-checkbox input[type="checkbox"] { flex-shrink: 0; width: 15px; height: 15px; accent-color: var(--accent); }
+.gear-menu .menu-item-checkbox span { line-height: 1.4; }
+.gear-menu .menu-sep { height: 1px; background: var(--line); margin: 4px 2px; }
+
+/* About dialog (same as Diskette's) */
+.about-section-title { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text); margin: 18px 0 4px; }
+.about-section-desc { font-size: 12px; margin: 0 0 8px; }
+
+/* Buttons */
+button {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--text);
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+button:hover { border-color: var(--accent-dim); }
+button.primary {
+  background: var(--accent);
+  color: #1f0a22;
+  border-color: var(--accent);
+  font-weight: 600;
+}
+button.primary:hover { background: #f0abfc; }
+button.danger { color: var(--warn); }
+button.danger:hover { border-color: var(--warn); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+button.small { padding: 6px 10px; font-size: 12px; }
+button.icontext-btn { display: inline-flex; align-items: center; gap: 6px; }
+button.icontext-btn .btn-icon { display: inline-flex; width: 14px; height: 14px; flex-shrink: 0; }
+.status-pill {
+  font-size: 11px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  padding: 3px 8px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+}
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 18px;
+}
+.panel h2 {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.panel h2 .section-icon { display: flex; color: var(--accent); flex-shrink: 0; }
+.panel h2 .section-icon svg { width: 15px; height: 15px; display: block; }
+.panel .desc { color: var(--muted); font-size: 12px; margin: 4px 0 14px; line-height: 1.5; }
+.error {
+  color: var(--warn);
+  background: var(--panel);
+  border: 1px solid var(--warn);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  font-size: 13px;
+}
+.status-message {
+  color: var(--good);
+  background: var(--panel);
+  border: 1px solid var(--good);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  font-size: 13px;
+}
+/* Scan progress */
+.scan-status-row { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; }
+.scan-status-label { font-size: 12px; color: var(--muted); font-family: var(--font-mono); }
+.progress-bar {
+  position: relative;
+  height: 6px;
+  width: 100%;
+  border-radius: 999px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+.progress-bar-fill { position: absolute; top: 0; bottom: 0; left: 0; width: 0%; background: var(--accent); border-radius: inherit; }
+.progress-bar-determinate .progress-bar-fill { transition: width 0.2s ease; }
+.progress-bar-indeterminate .progress-bar-fill { width: 35%; left: -35%; animation: progress-sweep 1.1s ease-in-out infinite; }
+@keyframes progress-sweep { 0% { left: -35%; } 100% { left: 100%; } }
+.empty { color: var(--muted); font-size: 13px; }
+/* Dialog (components/Dialog.tsx) — replaces window.alert/confirm */
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 11, 14, 0.6);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom))
+    max(20px, env(safe-area-inset-left));
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.14s ease;
+  z-index: 50;
+}
+.dialog-overlay.open { opacity: 1; pointer-events: auto; }
+.dialog-box {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  max-width: 420px;
+  width: 100%;
+  padding: 20px 22px;
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  transform: translateY(6px) scale(0.98);
+  transition: transform 0.14s ease;
+}
+.dialog-overlay.open .dialog-box { transform: translateY(0) scale(1); }
+.dialog-box h2 { font-size: 15px; font-weight: 600; margin: 0 0 10px; }
+.dialog-box p { font-size: 13px; color: var(--muted); line-height: 1.6; margin: 0 0 10px; }
+.dialog-box p:last-of-type { margin-bottom: 0; }
+.dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+.dialog-actions button { min-height: 44px; }
+
+/* App Testing overlay (dev-only — CLAUDE.md's Testing section) */
+.testing-tally { display: flex; gap: 8px; margin: 0 0 10px; }
+.testing-item-list { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.testing-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.testing-item-bug { border-color: var(--warn); }
+.testing-item-done { opacity: 0.6; }
+.testing-item-label { font-size: 12px; flex: 1 1 260px; min-width: 0; }
+.testing-item-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.testing-item-note { flex: 1 1 100%; margin: 0; font-size: 11px; color: var(--warn); }
+.testing-bug-draft { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-start; }
+.testing-bug-draft textarea {
+  flex: 1 1 220px;
+  min-width: 0;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  padding: 6px 8px;
+  resize: vertical;
+}
+
+/* "Go to app" jump target — a brief highlight ring, not a layout change. */
+.testing-highlight { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; transition: outline-color 1.5s ease; }
+
+@media (prefers-reduced-motion: reduce) {
+  .dialog-overlay, .dialog-box { transition: none; }
+}
+
+/* ---- Stylus ---- */
+
+.muted { color: var(--muted); }
+.mono { font-family: var(--font-mono); }
+
+/* Viewer: the art beside its SAUCE panel, stacked on narrow windows */
+.viewer-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 18px; align-items: start; }
+@media (max-width: 900px) { .viewer-layout { grid-template-columns: minmax(0, 1fr); } }
+.viewer-panel { margin-bottom: 0; }
+.viewer-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 8px 0 12px; }
+.toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer; }
+.toggle input[type="checkbox"] { accent-color: var(--accent); }
+select {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 6px;
+}
+
+/* The art itself: its own colors on black, whatever the theme. */
+.art-area { overflow: auto; max-height: calc(100vh - 200px); background: #000; }
+.art-stack { margin: 0 auto; }
+.art-band { position: relative; }
+.art-band canvas { display: block; width: 100%; height: 100%; }
+.art-band .art-blink-off { position: absolute; inset: 0; visibility: hidden; }
+.art-band .art-blink-off.shown { visibility: visible; }
+
+.sauce-panel { position: sticky; top: 12px; }
+.info-list { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; margin: 8px 0 0; font-size: 12px; }
+.info-list dt { color: var(--muted); }
+.info-list dd { margin: 0; overflow-wrap: anywhere; }
+.info-subhead { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin: 16px 0 0; }
+.sauce-comments { font-family: var(--font-mono); font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; margin: 6px 0 0; }
+
+.empty-state { text-align: center; padding: 48px 16px; }
+.empty-state .desc { max-width: 520px; margin: 8px auto 18px; }
+.core-line { margin-top: 18px; font-size: 11px; }
+
+/* Drag-and-drop overlay, as Diskette's */
+.drop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 22, 26, 0.88);
+  padding: 24px;
+  pointer-events: none;
+}
+.drop-box {
+  border: 3px dashed var(--accent);
+  border-radius: 14px;
+  padding: 36px 44px;
+  text-align: center;
+  color: var(--accent);
+  font-size: 18px;
+  font-weight: 600;
+}

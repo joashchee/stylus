@@ -1,0 +1,253 @@
+/* ANSIapps theme — the old-school DOS look every ansiapps app offers
+   (docs/ansiapps-theme.md, copied from Diskette, the reference
+   implementation). Stylus is the one app that opens in it by default
+   (lib/theme.ts). Everything here is scoped to html[data-theme="ansiapps"],
+   so the modern theme is untouched.
+
+   Mostly token overrides: the 16-color CGA/VGA text-mode palette, one
+   bitmap font at its native 16px, square corners, double-line frames and
+   hard black drop shadows. Blue "desktop" panels in the Norton Commander
+   mold, and light-gray Turbo Vision-style menus and dialogs.
+
+   The 16-color rule covers the app's own screens, never the art canvas,
+   which always shows the art's own colors. Stylus's fuchsia accent becomes
+   light magenta (5.06:1 on blue, and black on it is 8.0:1;
+   docs/ansiapps-color-contrast.md), with magenta as its dim.
+
+   Font: IBM VGA 8x16 from VileR's Ultimate Oldschool PC Font Pack
+   (int10h.org), CC BY-SA 4.0, shipped unmodified with its license in
+   public/fonts/ansiapps/ and credited in About. */
+
+@font-face {
+  font-family: "ansiapps VGA";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("/fonts/ansiapps/WebPlus_IBM_VGA_8x16.woff") format("woff");
+}
+
+:root[data-theme="ansiapps"] {
+  /* CGA/VGA text-mode palette */
+  --dos-black: #000000;
+  --dos-blue: #0000aa;
+  --dos-green: #00aa00;
+  --dos-cyan: #00aaaa;
+  --dos-red: #aa0000;
+  --dos-magenta: #aa00aa;
+  --dos-brown: #aa5500;
+  --dos-lightgray: #aaaaaa;
+  --dos-darkgray: #555555;
+  --dos-lightgreen: #55ff55;
+  --dos-lightcyan: #55ffff;
+  --dos-lightred: #ff5555;
+  --dos-lightmagenta: #ff55ff;
+  --dos-yellow: #ffff55;
+  --dos-white: #ffffff;
+
+  --bg: var(--dos-blue);
+  --panel: var(--dos-blue);
+  --panel-2: var(--dos-blue);
+  --line: var(--dos-lightcyan);
+  --text: var(--dos-white);
+  --muted: var(--dos-lightgray);
+  /* Stylus's fuchsia: light magenta, with magenta as its dim and tint. */
+  --accent: var(--dos-lightmagenta);
+  --accent-dim: var(--dos-magenta);
+  --accent-tint: var(--dos-magenta);
+  --warn: var(--dos-lightred);
+  --good: var(--dos-lightgreen);
+  --font-ui: "ansiapps VGA", ui-monospace, monospace;
+  --font-mono: "ansiapps VGA", ui-monospace, monospace;
+  --dos-shadow: 16px 16px 0 var(--dos-black);
+  --dos-shadow-small: 8px 8px 0 var(--dos-black);
+}
+
+/* One size and weight: a bitmap font is only crisp at its native 16px, and
+   has no bold (synthesized bold smears it). */
+:root[data-theme="ansiapps"] body,
+:root[data-theme="ansiapps"] body * {
+  font-size: 16px !important;
+  font-weight: 400 !important;
+  font-style: normal !important;
+  letter-spacing: 0 !important;
+  font-synthesis: none;
+  border-radius: 0 !important;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: auto;
+}
+:root[data-theme="ansiapps"] body { line-height: 1.25; }
+:root[data-theme="ansiapps"] code { font-family: var(--font-mono); color: var(--dos-yellow); }
+:root[data-theme="ansiapps"] ::selection { background: var(--dos-cyan); color: var(--dos-black); }
+
+:root[data-theme="ansiapps"] input:focus,
+:root[data-theme="ansiapps"] button:focus-visible,
+:root[data-theme="ansiapps"] a:focus-visible {
+  outline: 2px dashed var(--dos-white) !important;
+  outline-offset: 1px;
+}
+
+/* Scrollbars: a cyan track and a solid thumb, like a Turbo Vision scroller */
+:root[data-theme="ansiapps"] ::-webkit-scrollbar { width: 16px; height: 16px; background: var(--dos-cyan); }
+:root[data-theme="ansiapps"] ::-webkit-scrollbar-thumb { background: var(--dos-blue); border: 3px solid var(--dos-cyan); }
+
+/* Header */
+:root[data-theme="ansiapps"] header.top h1 span.accent { color: var(--dos-lightmagenta); }
+:root[data-theme="ansiapps"] .version-tag { color: var(--dos-lightcyan); }
+:root[data-theme="ansiapps"] .status-pill { border-color: var(--dos-lightgray); color: var(--dos-lightgray); }
+
+/* Buttons: light-gray bars with a hard shadow that "press" into it */
+:root[data-theme="ansiapps"] button {
+  background: var(--dos-lightgray);
+  color: var(--dos-black);
+  border: none;
+  padding: 4px 12px;
+  box-shadow: var(--dos-shadow-small);
+  transition: none;
+}
+:root[data-theme="ansiapps"] button.small { padding: 2px 10px; }
+:root[data-theme="ansiapps"] button:hover { background: var(--dos-white); }
+:root[data-theme="ansiapps"] button:active:not(:disabled) { transform: translate(8px, 8px); box-shadow: none; }
+:root[data-theme="ansiapps"] button.primary { background: var(--dos-lightmagenta); color: var(--dos-black); }
+:root[data-theme="ansiapps"] button.primary:hover { background: var(--dos-white); }
+:root[data-theme="ansiapps"] button.danger-fill { background: var(--dos-red); color: var(--dos-white); }
+:root[data-theme="ansiapps"] button.danger-fill:hover { background: var(--dos-lightred); color: var(--dos-black); }
+:root[data-theme="ansiapps"] button:disabled { opacity: 1; color: var(--dos-darkgray); box-shadow: var(--dos-shadow-small); }
+:root[data-theme="ansiapps"] .menu-item { box-shadow: none; }
+
+/* Panels: double-line frames with the title set into the top border */
+:root[data-theme="ansiapps"] .panel {
+  position: relative;
+  border: 3px double var(--line);
+  padding: 20px 16px 16px;
+  margin-top: 10px;
+}
+:root[data-theme="ansiapps"] .panel h2 {
+  position: absolute;
+  top: -11px;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 0 8px;
+  background: var(--panel);
+  color: var(--dos-white);
+  white-space: nowrap;
+}
+:root[data-theme="ansiapps"] .panel .desc { color: var(--muted); }
+
+:root[data-theme="ansiapps"] .error { background: var(--dos-red); color: var(--dos-white); border: none; box-shadow: var(--dos-shadow-small); }
+:root[data-theme="ansiapps"] .status-message { background: var(--dos-green); color: var(--dos-black); border: none; box-shadow: var(--dos-shadow-small); }
+
+/* Progress: a black track with a solid block fill */
+:root[data-theme="ansiapps"] .progress-bar { height: 16px; background: var(--dos-black); border: none; }
+:root[data-theme="ansiapps"] .progress-bar-fill {
+  background: repeating-linear-gradient(90deg, var(--dos-lightmagenta) 0 7px, var(--dos-magenta) 7px 8px);
+}
+:root[data-theme="ansiapps"] .scan-status-label,
+:root[data-theme="ansiapps"] .current-path { color: var(--dos-lightgray); }
+
+/* Menus and dialogs: light-gray Turbo Vision windows with black text.
+   Re-pointing the tokens inside them recolors everything they contain. */
+:root[data-theme="ansiapps"] .gear-menu,
+:root[data-theme="ansiapps"] .dialog-box {
+  --panel: var(--dos-lightgray);
+  --panel-2: var(--dos-lightgray);
+  --line: var(--dos-black);
+  --text: var(--dos-black);
+  --muted: var(--dos-blue);
+  --accent: var(--dos-blue);
+  --accent-dim: var(--dos-blue);
+  --good: var(--dos-green);
+  background: var(--dos-lightgray);
+  color: var(--dos-black);
+  box-shadow: var(--dos-shadow);
+}
+:root[data-theme="ansiapps"] .gear-menu {
+  border: 2px solid var(--dos-black);
+  outline: 6px solid var(--dos-lightgray);
+  padding: 0;
+  gap: 0;
+  top: calc(100% + 14px);
+}
+:root[data-theme="ansiapps"] .menu-item { min-height: 0; padding: 2px 10px; background: none; color: var(--dos-black); }
+:root[data-theme="ansiapps"] .gear-menu .menu-item:hover,
+:root[data-theme="ansiapps"] .gear-menu .menu-item:focus-within { background: var(--dos-green); }
+:root[data-theme="ansiapps"] .gear-menu .menu-item svg { color: var(--dos-black); }
+:root[data-theme="ansiapps"] .gear-menu .menu-sep { background: var(--dos-black); margin: 3px 0; }
+
+/* Checkboxes drawn as [X] */
+:root[data-theme="ansiapps"] input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: auto !important;
+  height: auto !important;
+  margin: 0;
+  font-family: var(--font-mono);
+  color: inherit;
+}
+:root[data-theme="ansiapps"] input[type="checkbox"]::before { content: "[ ]"; }
+:root[data-theme="ansiapps"] input[type="checkbox"]:checked::before { content: "[X]"; }
+:root[data-theme="ansiapps"] input[type="checkbox"]:disabled { color: var(--dos-darkgray); }
+
+:root[data-theme="ansiapps"] .dialog-overlay { background: rgba(0, 0, 0, 0.35); backdrop-filter: none; transition: none; }
+:root[data-theme="ansiapps"] .dialog-box {
+  border: 3px double var(--dos-white);
+  outline: 8px solid var(--dos-lightgray);
+  padding: 12px 16px;
+  transform: none;
+  transition: none;
+}
+/* The title sits on a double rule: ═══ About Stylus ═══ */
+:root[data-theme="ansiapps"] .dialog-box h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--dos-white);
+  background: var(--dos-blue);
+  margin: -12px -16px 12px;
+  padding: 0 8px;
+}
+:root[data-theme="ansiapps"] .dialog-box h2::before,
+:root[data-theme="ansiapps"] .dialog-box h2::after { content: ""; flex: 1; border-top: 3px double var(--dos-white); }
+:root[data-theme="ansiapps"] .dialog-box p { color: var(--dos-black); line-height: 1.25; }
+:root[data-theme="ansiapps"] .dialog-box button { background: var(--dos-green); color: var(--dos-black); }
+:root[data-theme="ansiapps"] .dialog-box button:hover { background: var(--dos-lightgreen); }
+:root[data-theme="ansiapps"] .dialog-box button.primary { background: var(--dos-lightmagenta); color: var(--dos-black); }
+:root[data-theme="ansiapps"] .dialog-box button.primary:hover { background: var(--dos-white); }
+:root[data-theme="ansiapps"] .dialog-box button.danger-fill { background: var(--dos-red); color: var(--dos-white); }
+:root[data-theme="ansiapps"] .dialog-box button:disabled { background: var(--dos-lightgray); color: var(--dos-darkgray); }
+:root[data-theme="ansiapps"] .dialog-actions button { min-height: 0; }
+:root[data-theme="ansiapps"] .dialog-box .mono { color: var(--dos-blue); }
+:root[data-theme="ansiapps"] .about-section-title { color: var(--dos-blue); }
+
+/* View tabs: a cyan selected tab, like a highlighted menu bar item */
+:root[data-theme="ansiapps"] .view-tabs { border-bottom: 1px solid var(--dos-lightgray); }
+:root[data-theme="ansiapps"] .view-tab { box-shadow: none; background: transparent; color: var(--dos-lightgray); border: none; }
+:root[data-theme="ansiapps"] .view-tab.selected { background: var(--dos-cyan); color: var(--dos-black); }
+
+/* App Testing (dev-only) */
+:root[data-theme="ansiapps"] .testing-bug-draft textarea {
+  background: var(--dos-black);
+  color: var(--dos-lightgray);
+  border: none;
+  caret-color: var(--dos-white);
+}
+:root[data-theme="ansiapps"] .testing-highlight { outline: 2px dashed var(--dos-yellow); }
+
+/* Launch screen (markup and base styles in index.html) */
+:root[data-theme="ansiapps"] .startup-screen { background: var(--dos-blue); color: var(--dos-white); font-family: var(--font-ui); transition: none; }
+:root[data-theme="ansiapps"] .startup-accent { color: var(--dos-lightmagenta); }
+:root[data-theme="ansiapps"] .startup-label { color: var(--dos-lightgray); font-family: var(--font-mono); }
+:root[data-theme="ansiapps"] .startup-progress { height: 16px; }
+
+/* Viewer. The art canvas is never themed: it shows the art's own colors. */
+:root[data-theme="ansiapps"] .toggle { color: var(--dos-white); }
+:root[data-theme="ansiapps"] select { background: var(--dos-black); color: var(--dos-lightgray); border: none; padding: 0 4px; }
+:root[data-theme="ansiapps"] .info-list dt { color: var(--dos-lightcyan); }
+:root[data-theme="ansiapps"] .info-list dd { color: var(--dos-white); }
+:root[data-theme="ansiapps"] .info-subhead { color: var(--dos-yellow); }
+:root[data-theme="ansiapps"] .sauce-comments { color: var(--dos-lightgray); }
+:root[data-theme="ansiapps"] .art-area { border: 1px solid var(--dos-lightcyan); }
+
+/* Drop overlay, as Diskette's */
+:root[data-theme="ansiapps"] .drop-overlay { background: rgba(0, 0, 170, 0.9); }
+:root[data-theme="ansiapps"] .drop-box { border: 3px double var(--dos-white); color: var(--dos-black); background: var(--dos-cyan); box-shadow: var(--dos-shadow); }
