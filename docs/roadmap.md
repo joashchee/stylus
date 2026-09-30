@@ -162,12 +162,22 @@ ID-signed, notarized, the in-development warning on).
   (the App Testing "Native menu" items). **Left:** document tabs, the
   Properties and Problems tabs, the rail's icons and flyouts, and the
   resizable panel.
-- [ ] **Files:** new, save, save as, recent files, unsaved-change
+- [x] **Files:** new, save, save as, recent files, unsaved-change
   prompts, and autosave to the app-data folder for crash recovery
-  (never over the user's file). **Done:** new, save (asks the first
-  time it would replace the file), save as, unsaved-change prompts on
-  open, new and closing the window; a replaced file is written beside it
-  and moved over it. **Left:** recent files, autosave.
+  (never over the user's file). **Done 2026-09-30:** new, save (asks the
+  first time it would replace the file), save as, unsaved-change prompts
+  on open, new and closing the window; a replaced file is written beside
+  it and moved over it. Recent files: the last ten opened or saved, in
+  `recent.json` in the app-data folder, as File → Open Recent (a
+  submenu in the command registry, both menu bars) and on the empty
+  screen. Autosave (`stylus-core/src/recovery.rs`,
+  `src-tauri/src/files.rs`): every 10 s while there are unsaved changes,
+  a lossless snapshot (IcyDraw plus the file's own SAUCE record, format
+  name and render settings, since IcyDraw alone would drop them) goes to
+  `Recovery/` in the app-data folder; saving, discarding or closing
+  removes it, so what's left at launch is from a crash and is offered
+  back as unsaved changes. Still to try in the app (the App Testing
+  "Recent and recovery" items).
 - [x] **Save formats:** `.ANS`, `.ASC`, `.XB` (with its font and
   palette), `.BIN`, `.ADF`, `.IDF`, `.TND`, all through icy_engine.
   **Done 2026-09-30.** `.TND` lost black text before its first color

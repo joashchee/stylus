@@ -43,6 +43,25 @@ pub struct NativeItem {
     enabled: bool,
     /// Present for items with a tick.
     checked: Option<bool>,
+    /// A submenu's items (File → Open Recent), `None` a separator.
+    #[serde(default)]
+    children: Option<Vec<Option<NativeItem>>>,
+}
+
+impl NativeItem {
+    /// This item and every item in its submenu.
+    fn with_children(&self) -> Vec<&NativeItem> {
+        let mut all = vec![self];
+        for child in self.children.iter().flatten().flatten() {
+            all.extend(child.with_children());
+        }
+        all
+    }
+}
+
+/// Every item in the spec, submenus' items included.
+fn all_items(spec: &MenuSpec) -> impl Iterator<Item = &NativeItem> {
+    spec.menus.iter().flat_map(|m| m.items.iter().flatten()).flat_map(NativeItem::with_children)
 }
 
 #[derive(Deserialize, Clone, PartialEq, Debug)]
@@ -69,6 +88,7 @@ pub struct MenuSpec {
 enum Item {
     Plain(MenuItem<Wry>),
     Check(CheckMenuItem<Wry>),
+    Sub(Submenu<Wry>),
 }
 
 /// The menu bar as last built, to update in place when only enabled and
@@ -131,52 +151,67 @@ fn shown(item: &NativeItem, focus: Focus) -> (bool, Option<String>) {
 /// Whether two specs build the same menus, differing only in what can be
 /// updated in place (enabled, checked).
 fn same_shape(a: &MenuSpec, b: &MenuSpec) -> bool {
-    // An item's id, label, accelerator and whether it has a tick.
-    type ItemShape = (String, String, Option<String>, bool);
-    let shape = |s: &MenuSpec| -> Vec<(String, Vec<Option<ItemShape>>)> {
-        s.menus
-            .iter()
-            .map(|m| {
-                let items = m
-                    .items
-                    .iter()
-                    .map(|i| i.as_ref().map(|i| (i.id.clone(), i.label.clone(), shown(i, s.focus).1, i.checked.is_some())))
-                    .collect();
-                (m.label.clone(), items)
-            })
-            .collect()
+    // An item's id, label, accelerator, whether it has a tick, and its
+    // submenu's shape.
+    fn item_shape(i: &Option<NativeItem>, focus: Focus) -> String {
+        match i {
+            None => "-".to_string(),
+            Some(i) => {
+                let children: Option<Vec<String>> = i.children.as_ref().map(|c| c.iter().map(|c| item_shape(c, focus)).collect());
+                format!("{:?}", (&i.id, &i.label, shown(i, focus).1, i.checked.is_some(), children))
+            }
+        }
+    }
+    let shape = |s: &MenuSpec| -> Vec<(String, Vec<String>)> {
+        s.menus.iter().map(|m| (m.label.clone(), m.items.iter().map(|i| item_shape(i, s.focus)).collect())).collect()
     };
     a.focus == b.focus && shape(a) == shape(b)
 }
 
+/// Builds one item (a submenu with its items), noting it in `items` to
+/// update in place later.
+fn make(app: &AppHandle, focus: Focus, item: &NativeItem, items: &mut HashMap<String, Item>) -> tauri::Result<Box<dyn IsMenuItem<Wry>>> {
+    if focus != Focus::Art {
+        if let Some(standard) = standard(&item.id) {
+            return Ok(Box::new(standard(app)?));
+        }
+    }
+    let (enabled, accel) = shown(item, focus);
+    if let Some(children) = &item.children {
+        let mut built: Vec<Box<dyn IsMenuItem<Wry>>> = Vec::new();
+        for child in children {
+            built.push(match child {
+                None => Box::new(PredefinedMenuItem::separator(app)?),
+                Some(c) => make(app, focus, c, items)?,
+            });
+        }
+        let refs: Vec<&dyn IsMenuItem<Wry>> = built.iter().map(|b| b.as_ref()).collect();
+        let sub = Submenu::with_id_and_items(app, &item.id, &item.label, enabled, &refs)?;
+        items.insert(item.id.clone(), Item::Sub(sub.clone()));
+        return Ok(Box::new(sub));
+    }
+    Ok(match item.checked {
+        Some(checked) => {
+            let i = CheckMenuItem::with_id(app, &item.id, &item.label, enabled, checked, accel.as_deref())?;
+            items.insert(item.id.clone(), Item::Check(i.clone()));
+            Box::new(i)
+        }
+        None => {
+            let i = MenuItem::with_id(app, &item.id, &item.label, enabled, accel.as_deref())?;
+            items.insert(item.id.clone(), Item::Plain(i.clone()));
+            Box::new(i)
+        }
+    })
+}
+
 fn build(app: &AppHandle, spec: &MenuSpec) -> tauri::Result<(Menu<Wry>, HashMap<String, Item>)> {
     let mut items = HashMap::new();
-    let mut make = |item: &NativeItem| -> tauri::Result<Box<dyn IsMenuItem<Wry>>> {
-        if spec.focus != Focus::Art {
-            if let Some(standard) = standard(&item.id) {
-                return Ok(Box::new(standard(app)?));
-            }
-        }
-        let (enabled, accel) = shown(item, spec.focus);
-        Ok(match item.checked {
-            Some(checked) => {
-                let i = CheckMenuItem::with_id(app, &item.id, &item.label, enabled, checked, accel.as_deref())?;
-                items.insert(item.id.clone(), Item::Check(i.clone()));
-                Box::new(i)
-            }
-            None => {
-                let i = MenuItem::with_id(app, &item.id, &item.label, enabled, accel.as_deref())?;
-                items.insert(item.id.clone(), Item::Plain(i.clone()));
-                Box::new(i)
-            }
-        })
-    };
 
     let pkg = app.package_info();
     let about_label = format!("About {}", pkg.name);
-    let about = spec.menus.iter().flat_map(|m| m.items.iter().flatten()).find(|i| i.id == ABOUT);
+    let about = all_items(spec).find(|i| i.id == ABOUT);
     let about: Box<dyn IsMenuItem<Wry>> = match about {
-        Some(i) => make(&NativeItem { label: about_label, ..i.clone() })?,
+        Some(i) => make(app, spec.focus, &NativeItem { label: about_label, ..i.clone() }, &mut items)?,
         // Before the frontend offers its About, the standard panel.
         None => Box::new(PredefinedMenuItem::about(
             app,
@@ -219,7 +254,7 @@ fn build(app: &AppHandle, spec: &MenuSpec) -> tauri::Result<(Menu<Wry>, HashMap<
         for entry in entries {
             built.push(match entry {
                 None => Box::new(PredefinedMenuItem::separator(app)?),
-                Some(i) => make(i)?,
+                Some(i) => make(app, spec.focus, i, &mut items)?,
             });
         }
         let refs: Vec<&dyn IsMenuItem<Wry>> = built.iter().map(|b| b.as_ref()).collect();
@@ -264,13 +299,14 @@ pub async fn set_native_menu(app: AppHandle, state: tauri::State<'_, NativeMenu>
             return Ok(());
         }
         if same_shape(last, &spec) {
-            let old: HashMap<&str, &NativeItem> = last.menus.iter().flat_map(|m| m.items.iter().flatten()).map(|i| (i.id.as_str(), i)).collect();
-            for item in spec.menus.iter().flat_map(|m| m.items.iter().flatten()) {
+            let old: HashMap<&str, &NativeItem> = all_items(last).map(|i| (i.id.as_str(), i)).collect();
+            for item in all_items(&spec) {
                 let (Some(was), Some(built)) = (old.get(item.id.as_str()), items.get(&item.id)) else { continue };
                 let (enabled, _) = shown(item, spec.focus);
                 let changed_enabled = shown(was, last.focus).0 != enabled;
                 let r = match built {
                     Item::Plain(i) => if changed_enabled { i.set_enabled(enabled) } else { Ok(()) },
+                    Item::Sub(i) => if changed_enabled { i.set_enabled(enabled) } else { Ok(()) },
                     Item::Check(i) => (if changed_enabled { i.set_enabled(enabled) } else { Ok(()) })
                         .and_then(|_| if was.checked != item.checked { i.set_checked(item.checked.unwrap_or(false)) } else { Ok(()) }),
                 };
@@ -321,7 +357,7 @@ mod tests {
     }
 
     fn item(id: &str, shortcut: Option<&str>, enabled: bool, checked: Option<bool>) -> NativeItem {
-        NativeItem { id: id.into(), label: id.into(), shortcut: shortcut.map(Into::into), enabled, checked }
+        NativeItem { id: id.into(), label: id.into(), shortcut: shortcut.map(Into::into), enabled, checked, children: None }
     }
 
     #[test]
@@ -344,5 +380,22 @@ mod tests {
         let mut unticked = spec(true, true, Focus::Art);
         unticked.menus[0].items[2].as_mut().unwrap().checked = None;
         assert!(!same_shape(&spec(true, true, Focus::Art), &unticked));
+    }
+
+    #[test]
+    fn a_submenu_rebuilds_when_its_items_change() {
+        let recent = |files: &[&str]| MenuSpec {
+            menus: vec![NativeMenuDef {
+                label: "File".into(),
+                items: vec![Some(NativeItem {
+                    children: Some(files.iter().map(|f| Some(item(&format!("file.recent.{f}"), None, true, None))).collect()),
+                    ..item("file.recent", None, !files.is_empty(), None)
+                })],
+            }],
+            focus: Focus::Art,
+        };
+        assert!(same_shape(&recent(&["a"]), &recent(&["a"])));
+        assert!(!same_shape(&recent(&["a"]), &recent(&["b", "a"])));
+        assert_eq!(all_items(&recent(&["a", "b"])).map(|i| i.id.as_str()).collect::<Vec<_>>(), ["file.recent", "file.recent.a", "file.recent.b"]);
     }
 }

@@ -516,7 +516,7 @@ impl Document {
     }
 
     /// The buffer cut to the rows shown (parsed formats pad to a screen).
-    fn buffer_for_save(&self) -> icy_engine::TextBuffer {
+    pub(crate) fn buffer_for_save(&self) -> icy_engine::TextBuffer {
         let mut buffer = self.buffer.clone();
         let size = Size::new(buffer.width(), self.rows);
         buffer.set_size(size);

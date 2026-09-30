@@ -65,8 +65,8 @@ pub struct Band {
 
 pub struct Document {
     pub(crate) buffer: TextBuffer,
-    sauce: Option<SauceRecord>,
-    format: String,
+    pub(crate) sauce: Option<SauceRecord>,
+    pub(crate) format: String,
     /// Rows shown. For parsed formats (ANSI, ASCII, PCBoard…) icy_engine
     /// starts from an 80×25 screen, so rows after the last one with content
     /// are padding and are left out, as libansilove does. Binary formats

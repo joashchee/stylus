@@ -31,9 +31,10 @@ formats with the loss warning and SAUCE fields, the corpus round trip,
 and every Phase 1 tool (Pencil, Eraser, Line, Rectangle, Box,
 Half-block, Type, Select, Fill, Pick) with selection (cut, copy, paste,
 move, flip, fill, clear), and the menu bar over one command registry, mirrored in the macOS menu
-bar (`src-tauri/src/native_menu.rs`, `src/lib/nativeMenu.ts`). Next:
-recent files and autosave, PNG export, the contrast lint, and measuring
-the IPC hot path on the M1.
+bar (`src-tauri/src/native_menu.rs`, `src/lib/nativeMenu.ts`), and
+recent files and crash-recovery autosave (`src-tauri/src/files.rs`,
+`stylus-core/src/recovery.rs`). Next: PNG export, the contrast lint, and
+measuring the IPC hot path on the M1.
 
 **Viewer history, still true:** checked against libansilove on Sixteen
 Colors packs (`scripts/compare-ansilove.sh`, corpus in the scratch
@@ -103,6 +104,9 @@ draws at 16 px; Stylus is right.
     `Clip` / `SelectionOp` (copy, paste, move, flip with mirrored
     characters, fill, clear). Every edit goes through `Document::commit`
     in `edit.rs`.
+  - `src/recovery.rs`: the autosave snapshot, lossless (IcyDraw plus the
+    file's own SAUCE record, format name and render settings), reopened
+    as unsaved changes.
   - `src/sauce.rs`: `SauceInfo`, every SAUCE field, decoded from CP437.
   - `src/convert/`: Image to ANSI. One module per ported open-source
     converter (each with its `ConverterInfo`: origin, license, commit,
@@ -122,7 +126,8 @@ draws at 16 px; Stylus is right.
   - Later: converters, generators, the animation encoder, the contrast
     checker, the theme-pack model and `stylus-render`.
 - `src-tauri/src/lib.rs`: Tauri commands wrapping the core, for file I/O
-  and OS integration only.
+  and OS integration only. `files.rs`: the app-data folder's
+  `recent.json` and `Recovery/` autosaves (never the user's file).
 - `src-tauri/src/first_run.rs`: the in-development warning on first run
   (`docs/ansiapps-theme.md`). The main window is `"create": false` and
   built in `setup` only once it's accepted.

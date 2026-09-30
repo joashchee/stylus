@@ -9,8 +9,8 @@
  * the rules). Runs a command chosen in the menu bar through the registry.
  */
 import { useEffect, useState } from "react";
-import { onNativeMenu, setNativeMenu, type NativeMenuSpec } from "./backend";
-import { IS_MAC, menuItems, MENUS, useMenuState } from "./commands";
+import { onNativeMenu, setNativeMenu, type NativeItem, type NativeMenuSpec } from "./backend";
+import { IS_MAC, itemEnabled, menuItems, MENUS, useMenuState, type MenuItem } from "./commands";
 
 type Focus = NativeMenuSpec["focus"];
 
@@ -47,6 +47,18 @@ function useFocus(): Focus {
 
 const inTauri = "__TAURI_INTERNALS__" in window;
 
+function nativeItem(item: MenuItem | "-"): NativeItem | null {
+  if (item === "-") return null;
+  return {
+    id: item.id,
+    label: item.label,
+    shortcut: item.shortcut,
+    enabled: itemEnabled(item),
+    checked: item.handler?.checked,
+    children: item.children?.map(nativeItem),
+  };
+}
+
 /** Keeps the macOS menu bar in step with the registry. Once, under `CommandProvider`. */
 export function useNativeMenu() {
   const registry = useMenuState();
@@ -56,17 +68,7 @@ export function useNativeMenu() {
     focus,
     menus: MENUS.map((menu) => ({
       label: menu.label,
-      items: menuItems(menu, handlers).map((item) =>
-        item === "-"
-          ? null
-          : {
-              id: item.id,
-              label: item.label,
-              shortcut: item.shortcut,
-              enabled: !!item.handler && item.handler.enabled !== false,
-              checked: item.handler?.checked,
-            },
-      ),
+      items: menuItems(menu, handlers).map(nativeItem),
     })),
   };
   const key = JSON.stringify(spec);

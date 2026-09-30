@@ -8,7 +8,9 @@
  * whether it can right now. `useCommands` hands the registry a component's
  * handlers (run, enabled, checked) on every render. A command with no
  * handler shows disabled, except in a `group`, whose items show only while
- * someone provides them (the Amiga fonts for a text file).
+ * someone provides them (the Amiga fonts for a text file), and a `submenu`,
+ * whose items are whatever is provided under its id (Open Recent's files)
+ * and which shows disabled while none can run.
  *
  * A menu only lists what its phase has shipped: no greyed-out placeholders
  * for features still to come.
@@ -35,7 +37,7 @@ export interface CommandDef {
   canvasKey?: boolean;
 }
 
-export type MenuEntry = CommandDef | "-" | { group: string };
+export type MenuEntry = CommandDef | "-" | { group: string } | { submenu: string; label: string };
 
 export interface MenuDef {
   id: MenuId;
@@ -54,6 +56,8 @@ export const MENUS: MenuDef[] = [
     items: [
       { id: "file.new", label: "New…", shortcut: "mod+n" },
       { id: "file.open", label: "Open…", shortcut: "mod+o" },
+      { submenu: "file.recent", label: "Open Recent" },
+      { group: "file.recover" },
       "-",
       { id: "file.save", label: "Save", shortcut: "mod+s" },
       { id: "file.saveAs", label: "Save As…", shortcut: "mod+shift+s" },
@@ -157,8 +161,10 @@ export interface Handler {
   enabled?: boolean;
   /** A tick in the menu (a tool, a setting that's on). */
   checked?: boolean;
-  /** For a group's items, which the table doesn't name. */
+  /** For a group's or submenu's items, which the table doesn't name. */
   label?: string;
+  /** In a submenu, a separator goes above this item. */
+  separatorBefore?: boolean;
 }
 
 export type Handlers = Record<string, Handler>;
@@ -169,6 +175,15 @@ export interface MenuItem {
   label: string;
   shortcut?: string;
   handler?: Handler;
+  /** A submenu's items. */
+  children?: (MenuItem | "-")[];
+}
+
+/** An item that can be chosen now: a command that can run, or a submenu with one that can. */
+export function itemEnabled(item: MenuItem | "-"): item is MenuItem {
+  if (item === "-") return false;
+  if (item.children) return item.children.some(itemEnabled);
+  return !!item.handler && item.handler.enabled !== false;
 }
 
 /** A menu's items as they stand now: groups filled in, stray separators dropped. */
@@ -182,6 +197,14 @@ export function menuItems(menu: MenuDef, handlers: Handlers): (MenuItem | "-")[]
       const ids = Object.keys(handlers).filter((id) => id.startsWith(prefix));
       if (ids.length > 0) out.push("-");
       for (const id of ids) out.push({ id, label: handlers[id].label ?? id.slice(prefix.length), handler: handlers[id] });
+    } else if ("submenu" in entry) {
+      const prefix = `${entry.submenu}.`;
+      const children: (MenuItem | "-")[] = [];
+      for (const id of Object.keys(handlers).filter((id) => id.startsWith(prefix))) {
+        if (handlers[id].separatorBefore && children.length > 0) children.push("-");
+        children.push({ id, label: handlers[id].label ?? id.slice(prefix.length), handler: handlers[id] });
+      }
+      out.push({ id: entry.submenu, label: entry.label, children });
     } else {
       out.push({ id: entry.id, label: entry.label, shortcut: entry.shortcut, handler: handlers[entry.id] });
     }
@@ -251,7 +274,7 @@ export function CommandProvider({ children }: { children: ReactNode }) {
         const all = handlers();
         const sig = Object.keys(all)
           .sort()
-          .map((id) => `${id}:${all[id].enabled !== false}:${!!all[id].checked}:${all[id].label ?? ""}`)
+          .map((id) => `${id}:${all[id].enabled !== false}:${!!all[id].checked}:${all[id].label ?? ""}:${!!all[id].separatorBefore}`)
           .join("|");
         if (sig !== shown.current) {
           shown.current = sig;

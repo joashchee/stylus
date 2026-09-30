@@ -14,15 +14,22 @@ import { AppMarkIcon, ChecklistIcon, FolderIcon, GearIcon, InfoIcon } from "./co
 import { StartupScreen } from "./components/StartupScreen";
 import { useActivities } from "./lib/activity";
 import {
+  autosave,
   closeArt,
   converterLicense,
   coreInfo,
+  discardRecovery,
+  forgetRecent,
   imageExtensions,
   libraryNotices,
   listConverters,
   newArt,
+  noteRecent,
   openArt,
   openExtensions,
+  recentFiles,
+  recover,
+  recoverable,
   saveArt,
   saveFormats,
   saveLosses,
@@ -35,17 +42,41 @@ import {
   type LibraryNotice,
   type CoreInfo,
   type OpenedArt,
+  type Recoverable,
   type RenderSettings,
 } from "./lib/backend";
 import { applyTheme, loadTheme, type Theme } from "./lib/theme";
 import { useCommands, type Handlers } from "./lib/commands";
 
 /**
- * Launch-time work, in the order StartupScreen names it. Only the core
- * exists so far; font atlases, recent files and the theme pack join as
- * they land (Diskette's docs/stylus-notes.md, "Loading screen").
+ * Launch-time work, in the order StartupScreen names it: the core, then
+ * the recent files and any autosave left by a crash. Font atlases and the
+ * theme pack join as they land (Diskette's docs/stylus-notes.md, "Loading
+ * screen").
  */
-const STARTUP_STEPS = ["core"] as const;
+const STARTUP_STEPS = ["core", "files"] as const;
+
+/** How often unsaved changes are autosaved for crash recovery. */
+const AUTOSAVE_MS = 10_000;
+
+/** A new document's recovery key: letters, digits and a dash (src-tauri's files.rs checks). */
+function newRecoveryKey() {
+  return `${Date.now().toString(36)}-${Math.floor(Math.random() * 36 ** 8).toString(36)}`;
+}
+
+function fileName(path: string) {
+  return path.split(/[\\/]/).pop() ?? path;
+}
+
+/** Recent files as the menu names them: the file name, and its folder where two share a name. */
+function recentLabels(paths: string[]): string[] {
+  return paths.map((path) => {
+    const name = fileName(path);
+    if (paths.filter((p) => fileName(p) === name).length < 2) return name;
+    const parts = path.split(/[\\/]/);
+    return `${name} — ${parts[parts.length - 2] ?? ""}`;
+  });
+}
 
 /** Canvas sizes New offers first (columns × rows). */
 const NEW_SIZES: [number, number][] = [
@@ -60,10 +91,13 @@ interface OpenDocument extends OpenedArt {
   path: string | null;
   /** The user agreed to Save replacing `path`, so later saves don't ask. */
   replaceConfirmed: boolean;
+  /** Names its autosave in the app-data folder. */
+  recoveryKey: string;
 }
 type StartupStep = (typeof STARTUP_STEPS)[number];
 const STARTUP_LABELS: Record<StartupStep, string> = {
   core: "Starting the engine…",
+  files: "Reading recent files…",
 };
 
 function App() {
@@ -91,6 +125,10 @@ function App() {
   const [newSize, setNewSize] = useState({ columns: 80, rows: 25, ice: true });
   /** Something waiting on "discard the unsaved changes?" */
   const [discardThen, setDiscardThen] = useState<(() => void) | null>(null);
+  const [recent, setRecent] = useState<string[]>([]);
+  /** Autosaves left from when Stylus last stopped without saving. */
+  const [recoverList, setRecoverList] = useState<Recoverable[]>([]);
+  const [recoverOpen, setRecoverOpen] = useState(false);
   const artRef = useRef<OpenDocument | null>(null);
   artRef.current = art;
   const [dropActive, setDropActive] = useState(false);
@@ -114,6 +152,14 @@ function App() {
       })
       .catch((e) => setError(`Couldn't start the engine: ${e}`))
       .finally(() => finishStep("core"));
+    Promise.all([recentFiles(), recoverable()])
+      .then(([files, left]) => {
+        setRecent(files);
+        setRecoverList(left);
+        if (left.length > 0) setRecoverOpen(true);
+      })
+      .catch((e) => setError(`Couldn't read the recent files: ${e}`))
+      .finally(() => finishStep("files"));
   }, []);
 
   /** Runs `then` now, or after the user agrees to drop unsaved changes. */
@@ -122,12 +168,20 @@ function App() {
     else then();
   }, []);
 
+  /** Puts the art on screen in place of what was there, whose autosave goes with it. */
   const replaceArt = useCallback((next: OpenDocument) => {
     setArt((previous) => {
-      if (previous) void closeArt(previous.id);
+      if (previous) {
+        void closeArt(previous.id);
+        if (previous.recoveryKey !== next.recoveryKey) void discardRecovery(previous.recoveryKey).catch(() => undefined);
+      }
       return next;
     });
     setView("art");
+  }, []);
+
+  const rememberRecent = useCallback((path: string) => {
+    noteRecent(path).then(setRecent, () => undefined);
   }, []);
 
   /** Opens a file, replacing the art on screen. Never changes the file. */
@@ -135,10 +189,30 @@ function App() {
     (path: string) =>
       unlessEdited(async () => {
         setError(null);
-        const name = path.split(/[\\/]/).pop() ?? path;
         try {
-          const opened = await runActivity(`Opening ${name}…`, () => openArt(path));
-          replaceArt({ ...opened, path, replaceConfirmed: false });
+          const opened = await runActivity(`Opening ${fileName(path)}…`, () => openArt(path));
+          replaceArt({ ...opened, path, replaceConfirmed: false, recoveryKey: newRecoveryKey() });
+          rememberRecent(path);
+        } catch (e) {
+          setError(String(e));
+          // A file that's gone comes off the recent list.
+          forgetRecent(path, true).then(setRecent, () => undefined);
+        }
+      }),
+    [runActivity, unlessEdited, replaceArt, rememberRecent],
+  );
+
+  /** Opens an autosave as art with unsaved changes, to save where the user likes. */
+  const recoverArt = useCallback(
+    (item: Recoverable) =>
+      unlessEdited(async () => {
+        setError(null);
+        try {
+          const opened = await runActivity(`Recovering ${item.name}…`, () => recover(item.key));
+          replaceArt({ ...opened, path: item.path, replaceConfirmed: false, recoveryKey: item.key });
+          setRecoverList((list) => list.filter((r) => r.key !== item.key));
+          setRecoverOpen(false);
+          setStatus(`Recovered ${item.name}. Save it to keep it.`);
         } catch (e) {
           setError(String(e));
         }
@@ -146,11 +220,37 @@ function App() {
     [runActivity, unlessEdited, replaceArt],
   );
 
+  async function discardRecovered(item: Recoverable) {
+    try {
+      await discardRecovery(item.key);
+      const left = recoverList.filter((r) => r.key !== item.key);
+      setRecoverList(left);
+      if (left.length === 0) setRecoverOpen(false);
+    } catch (e) {
+      setError(String(e));
+    }
+  }
+
+  // Unsaved changes are autosaved to the app-data folder (never over the
+  // file), and the autosave goes once nothing is unsaved.
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const doc = artRef.current;
+      if (doc?.info.edited) autosave(doc.id, doc.recoveryKey, doc.name, doc.path).catch((e) => setStatus(String(e)));
+    }, AUTOSAVE_MS);
+    return () => window.clearInterval(timer);
+  }, []);
+  const unsaved = !!art?.info.edited;
+  useEffect(() => {
+    if (art && !unsaved) void discardRecovery(art.recoveryKey).catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [art?.recoveryKey, unsaved]);
+
   async function createNew() {
     setNewOpen(false);
     try {
       const made = await newArt(newSize.columns, newSize.rows, newSize.ice);
-      replaceArt({ ...made, path: null, replaceConfirmed: false });
+      replaceArt({ ...made, path: null, replaceConfirmed: false, recoveryKey: newRecoveryKey() });
     } catch (e) {
       setError(String(e));
     }
@@ -192,6 +292,9 @@ function App() {
   const handlers: Handlers = {
     "file.new": { run: () => setNewOpen(true) },
     "file.open": { run: () => void pickAndOpen() },
+    ...Object.fromEntries(recentLabels(recent).map((label, i) => [`file.recent.${i}`, { run: () => openPath(recent[i]), label }])),
+    "file.recent.clear": { run: () => void forgetRecent(null).then(setRecent, (e) => setError(String(e))), enabled: recent.length > 0, label: "Clear Menu", separatorBefore: true },
+    ...(recoverList.length > 0 ? { "file.recover.open": { run: () => setRecoverOpen(true), label: "Recover Unsaved Art…" } } : {}),
     "file.save": { run: () => void saveCurrent(), enabled: onArt },
     "file.saveAs": { run: () => setSaveMode("save-as"), enabled: onArt },
     "colors.ice": { run: () => void changeSettings({ iceColors: !art?.info.settings.iceColors }), enabled: onArt, checked: !!art?.info.settings.iceColors },
@@ -219,10 +322,11 @@ function App() {
   }, [title]);
 
   function onSaved(info: DocumentInfo, path: string) {
-    const name = path.split(/[\\/]/).pop() ?? path;
+    const name = fileName(path);
     setArt((current) => (current ? { ...current, info, path, name, replaceConfirmed: true } : current));
     setSaveMode(null);
     setStatus(`Saved ${name}`);
+    rememberRecent(path);
   }
 
   async function changeTextFont(font: string) {
@@ -255,9 +359,11 @@ function App() {
   // Closing the window with unsaved changes asks first.
   useEffect(() => {
     const unlisten = getCurrentWindow().onCloseRequested((event) => {
-      if (!artRef.current?.info.edited) return;
+      const doc = artRef.current;
+      if (!doc?.info.edited) return;
       event.preventDefault();
-      setDiscardThen(() => () => void getCurrentWindow().destroy());
+      // Discarding on purpose leaves nothing to recover.
+      setDiscardThen(() => () => void discardRecovery(doc.recoveryKey).finally(() => void getCurrentWindow().destroy()));
     });
     return () => void unlisten.then((f) => f());
   }, []);
@@ -449,7 +555,7 @@ function App() {
             onInfo={updateInfo}
             runActivity={runActivity}
             onError={setError}
-            active={view === "art" && saveMode === null && !newOpen && discardThen === null}
+            active={view === "art" && saveMode === null && !newOpen && discardThen === null && !recoverOpen}
           />
         ) : (
           <section className="panel empty-state">
@@ -458,6 +564,20 @@ function App() {
               Drop a file here or choose Open. Stylus opens {extensions.length > 0 ? extensions.map((e) => `.${e.toUpperCase()}`).join(", ") : "ANSI and ASCII art"}, and
               never changes the file unless you save over it.
             </p>
+            {recent.length > 0 && (
+              <nav className="recent-list" aria-label="Recent files" data-testid="recent-list">
+                <h3>Recent</h3>
+                <ul>
+                  {recentLabels(recent).map((label, i) => (
+                    <li key={recent[i]}>
+                      <button type="button" className="link-btn" title={recent[i]} onClick={() => openPath(recent[i])}>
+                        {label}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            )}
             <div className="empty-actions">
               <button type="button" className="primary" data-testid="new-empty-button" onClick={() => setNewOpen(true)}>
                 New…
@@ -570,6 +690,44 @@ function App() {
         }
       >
         <p>{art?.name} has changes that aren't saved. Discard them?</p>
+      </Dialog>
+
+      <Dialog
+        open={recoverOpen}
+        onClose={() => setRecoverOpen(false)}
+        title="Recover unsaved art"
+        className="dialog-wide"
+        actions={
+          <button type="button" data-testid="recover-later" onClick={() => setRecoverOpen(false)}>
+            Later
+          </button>
+        }
+      >
+        <p>
+          Stylus stopped before {recoverList.length === 1 ? "this art was" : "these were"} saved. The changes were kept on this computer. Recover opens the art
+          with its changes, ready to save; your original file hasn't been touched.
+        </p>
+        <ul className="recover-list" data-testid="recover-list">
+          {recoverList.map((item) => (
+            <li key={item.key}>
+              <div className="recover-what">
+                <strong>{item.name}</strong>
+                <span className="muted">
+                  {item.path ? `from ${item.path}` : "never saved"} · changed {new Date(item.savedAt * 1000).toLocaleString()}
+                </span>
+              </div>
+              <div className="recover-actions">
+                <button type="button" className="danger" onClick={() => void discardRecovered(item)}>
+                  Discard
+                </button>
+                <button type="button" className="primary" data-testid="recover-open" onClick={() => recoverArt(item)}>
+                  Recover
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+        {recoverList.length > 1 && <p className="muted">Stylus shows one piece of art at a time. The rest stay here, under File → Recover Unsaved Art….</p>}
       </Dialog>
 
       {dropActive && (

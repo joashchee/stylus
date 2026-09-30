@@ -6,6 +6,7 @@
 pub mod convert;
 mod document;
 mod edit;
+mod recovery;
 mod sauce;
 mod tools;
 

@@ -13,6 +13,7 @@ use stylus_core::{CellEdit, CellInfo, CellRect, Clip, Document, DocumentInfo, Pe
 use tauri::ipc::Response;
 use tauri::{AppHandle, Manager, State};
 
+mod files;
 mod first_run;
 mod native_menu;
 
@@ -30,6 +31,9 @@ struct Library {
     images: HashMap<u32, (String, Arc<convert::RgbaImage>)>,
     /// Cells copied or cut, for pasting into any open document.
     clip: Option<Clip>,
+    /// What each autosave last wrote (files.rs), by recovery key: the
+    /// document's version and render settings, so an unchanged one is skipped.
+    autosaved: HashMap<String, (u64, RenderSettings)>,
 }
 
 type Shared = Arc<Mutex<Library>>;
@@ -519,6 +523,7 @@ pub fn run() {
         .on_menu_event(|app, event| native_menu::on_menu_event(app, event.id().as_ref()))
         .setup(|app| {
             let app_data_dir = app.path().app_data_dir().expect("failed to resolve app data dir");
+            app.manage(files::AppData::new(app_data_dir.clone()));
             // The main window has `"create": false` in tauri.conf.json, so
             // nothing is drawn until the first-run warning is answered.
             if first_run::accepted(&app_data_dir) {
@@ -563,6 +568,13 @@ pub fn run() {
             convert_image,
             save_made_art,
             export_app_testing_report,
+            files::recent_files,
+            files::note_recent,
+            files::forget_recent,
+            files::autosave,
+            files::discard_recovery,
+            files::recoverable,
+            files::recover,
             native_menu::set_native_menu
         ])
         .run(tauri::generate_context!())

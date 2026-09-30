@@ -7,17 +7,14 @@
  * Mouse: click a title to open its menu; while one is open, pointing at
  * another title opens that one. Keyboard: Option/Alt + an access letter
  * opens a menu, arrows move through items and menus, Enter runs, Esc
- * closes.
+ * closes. A submenu (Open Recent) opens on pointing, clicking or →, and ←
+ * or Esc goes back to its menu.
  *
  * On macOS it also keeps the native menu bar in step (lib/nativeMenu.ts).
  */
 import { Fragment, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
-import { forSomethingElse, IS_MAC, menuItems, MENUS, shortcutLabel, useMenuState, type CommandDef, type MenuId, type MenuItem } from "../lib/commands";
+import { forSomethingElse, IS_MAC, itemEnabled, menuItems, MENUS, shortcutLabel, useMenuState, type CommandDef, type MenuId } from "../lib/commands";
 import { useNativeMenu } from "../lib/nativeMenu";
-
-function enabled(item: MenuItem | "-"): item is MenuItem {
-  return item !== "-" && !!item.handler && item.handler.enabled !== false;
-}
 
 /** The title with its access letter marked. */
 function AccessLabel({ label, access }: { label: string; access: string }) {
@@ -37,6 +34,11 @@ export function MenuBar({ start, end }: { start?: ReactNode; end?: ReactNode }) 
   const handlers = registry.handlers();
   useNativeMenu();
   const [open, setOpen] = useState<MenuId | null>(null);
+  /** The submenu open in the open menu, by id. */
+  const [sub, setSub] = useState<string | null>(null);
+  const subRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  /** Focus the submenu's first item once it opens from the keyboard. */
+  const focusSub = useRef(false);
   const barRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const titleRefs = useRef<Partial<Record<MenuId, HTMLButtonElement | null>>>({});
@@ -58,6 +60,15 @@ export function MenuBar({ start, end }: { start?: ReactNode; end?: ReactNode }) 
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
   }, [open]);
+
+  useEffect(() => setSub(null), [open]);
+
+  useEffect(() => {
+    if (sub && focusSub.current) {
+      focusSub.current = false;
+      subRefs.current.find((b) => b && !b.disabled)?.focus();
+    }
+  }, [sub]);
 
   useEffect(() => {
     if (open && focusFirst.current) {
@@ -105,6 +116,10 @@ export function MenuBar({ start, end }: { start?: ReactNode; end?: ReactNode }) 
       e.preventDefault();
       const next = buttons[(at + (e.key === "ArrowDown" ? 1 : buttons.length - 1)) % buttons.length];
       next?.focus();
+    } else if (e.key === "ArrowRight" && e.currentTarget.getAttribute("aria-haspopup") === "menu") {
+      e.preventDefault();
+      focusSub.current = true;
+      setSub((e.currentTarget as HTMLElement).dataset.submenu ?? null);
     } else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
       e.preventDefault();
       const next = MENUS[(menuIndex + (e.key === "ArrowRight" ? 1 : MENUS.length - 1)) % MENUS.length];
@@ -118,13 +133,33 @@ export function MenuBar({ start, end }: { start?: ReactNode; end?: ReactNode }) 
     }
   }
 
+  function onSubKey(e: ReactKeyboardEvent) {
+    const buttons = subRefs.current.filter((b): b is HTMLButtonElement => !!b && !b.disabled);
+    const at = buttons.indexOf(e.currentTarget as HTMLButtonElement);
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      buttons[(at + (e.key === "ArrowDown" ? 1 : buttons.length - 1)) % buttons.length]?.focus();
+    } else if (e.key === "ArrowLeft" || e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      const parent = itemRefs.current.find((b) => b?.dataset.submenu === sub);
+      setSub(null);
+      parent?.focus();
+    } else if (e.key === "Tab") {
+      setOpen(null);
+    }
+  }
+
   return (
     <div className="menu-bar" ref={barRef} data-testid="menu-bar" onPointerDownCapture={rememberFocus}>
       {start}
       <div className="menu-titles" role="menubar" aria-label="Menus">
         {MENUS.map((menu) => {
           const items = open === menu.id ? menuItems(menu, handlers) : [];
-          if (open === menu.id) itemRefs.current = [];
+          if (open === menu.id) {
+            itemRefs.current = [];
+            subRefs.current = [];
+          }
           return (
             <div key={menu.id} className="menu-wrap">
               <button
@@ -157,6 +192,57 @@ export function MenuBar({ start, end }: { start?: ReactNode; end?: ReactNode }) 
                   {items.map((item, i) =>
                     item === "-" ? (
                       <div key={`sep-${i}`} className="menu-sep" role="separator" />
+                    ) : item.children ? (
+                      <div key={item.id} className="menu-sub-wrap" onPointerEnter={() => itemEnabled(item) && setSub(item.id)}>
+                        <button
+                          type="button"
+                          role="menuitem"
+                          aria-haspopup="menu"
+                          aria-expanded={sub === item.id}
+                          className={`menu-item menu-command${sub === item.id ? " sub-open" : ""}`}
+                          data-testid={`command-${item.id}`}
+                          data-submenu={item.id}
+                          disabled={!itemEnabled(item)}
+                          ref={(el) => {
+                            itemRefs.current.push(el);
+                          }}
+                          onClick={() => setSub(sub === item.id ? null : item.id)}
+                          onKeyDown={onMenuKey}
+                        >
+                          <span className="menu-check" aria-hidden="true" />
+                          <span className="menu-label">{item.label}</span>
+                          <span className="menu-shortcut" aria-hidden="true">
+                            ▸
+                          </span>
+                        </button>
+                        {sub === item.id && (
+                          <div className="menu-dropdown menu-submenu" role="menu" aria-label={item.label}>
+                            {item.children.map((child, j) =>
+                                child === "-" ? (
+                                  <div key={`sep-${j}`} className="menu-sep" role="separator" />
+                                ) : (
+                                  <button
+                                    key={child.id}
+                                    type="button"
+                                    role="menuitem"
+                                    className="menu-item menu-command"
+                                    data-testid={`command-${child.id}`}
+                                    disabled={!itemEnabled(child)}
+                                    ref={(el) => {
+                                      subRefs.current.push(el);
+                                    }}
+                                    onClick={() => run(child.id)}
+                                    onKeyDown={onSubKey}
+                                  >
+                                    <span className="menu-check" aria-hidden="true" />
+                                    <span className="menu-label">{child.label}</span>
+                                    <span className="menu-shortcut" />
+                                  </button>
+                                ),
+                              )}
+                          </div>
+                        )}
+                      </div>
                     ) : (
                       <Fragment key={item.id}>
                         <button
@@ -165,12 +251,13 @@ export function MenuBar({ start, end }: { start?: ReactNode; end?: ReactNode }) 
                           aria-checked={item.handler?.checked !== undefined ? item.handler.checked : undefined}
                           className="menu-item menu-command"
                           data-testid={`command-${item.id}`}
-                          disabled={!enabled(item)}
+                          disabled={!itemEnabled(item)}
                           ref={(el) => {
                             itemRefs.current.push(el);
                           }}
                           onClick={() => run(item.id)}
                           onKeyDown={onMenuKey}
+                          onPointerEnter={() => setSub(null)}
                         >
                           <span className="menu-check" aria-hidden="true">
                             {item.handler?.checked ? "✓" : ""}

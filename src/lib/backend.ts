@@ -381,6 +381,8 @@ export interface NativeItem {
   enabled: boolean;
   /** Present for items with a tick. */
   checked?: boolean;
+  /** A submenu's items (`null` is a separator). */
+  children?: (NativeItem | null)[];
 }
 
 export interface NativeMenuSpec {
@@ -398,4 +400,51 @@ export function setNativeMenu(spec: NativeMenuSpec): Promise<void> {
 /** Calls back with a command's id when it's chosen in the macOS menu bar. */
 export function onNativeMenu(run: (id: string) => void): Promise<() => void> {
   return listen<string>("native-menu", (e) => run(e.payload));
+}
+
+/** The recent files, newest first. */
+export function recentFiles(): Promise<string[]> {
+  return invoke<string[]>("recent_files");
+}
+
+/** Puts a file just opened or saved at the top of the recent files. */
+export function noteRecent(path: string): Promise<string[]> {
+  return invoke<string[]>("note_recent", { path });
+}
+
+/** Takes `path` off the recent files (only if it's gone, with `onlyIfMissing`); `null` clears them. */
+export function forgetRecent(path: string | null, onlyIfMissing = false): Promise<string[]> {
+  return invoke<string[]>("forget_recent", { path, onlyIfMissing });
+}
+
+/** An autosave left from when Stylus last stopped; mirrors src-tauri's `files::Recoverable`. */
+export interface Recoverable {
+  key: string;
+  name: string;
+  path: string | null;
+  /** Seconds since 1970. */
+  savedAt: number;
+}
+
+/**
+ * Autosaves document `id` to the app-data folder under `key` if it has
+ * unsaved changes the last autosave didn't; removes its autosave if it has
+ * none. Never touches the user's file. Resolves to whether it wrote.
+ */
+export function autosave(id: number, key: string, name: string, path: string | null): Promise<boolean> {
+  return invoke<boolean>("autosave", { id, key, name, path });
+}
+
+/** Removes a document's autosave (saved, discarded or closed). */
+export function discardRecovery(key: string): Promise<void> {
+  return invoke("discard_recovery", { key });
+}
+
+export function recoverable(): Promise<Recoverable[]> {
+  return invoke<Recoverable[]>("recoverable");
+}
+
+/** Opens an autosave as art with unsaved changes. */
+export function recover(key: string): Promise<OpenedArt> {
+  return invoke<OpenedArt>("recover", { key });
 }

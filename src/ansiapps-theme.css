@@ -333,7 +333,8 @@
 :root[data-theme="ansiapps"] .menu-title:hover,
 :root[data-theme="ansiapps"] .menu-title.open,
 :root[data-theme="ansiapps"] .menu-command:hover:not(:disabled),
-:root[data-theme="ansiapps"] .menu-command:focus-visible { background: var(--dos-green); color: var(--dos-black); }
+:root[data-theme="ansiapps"] .menu-command:focus-visible,
+:root[data-theme="ansiapps"] .menu-command.sub-open { background: var(--dos-green); color: var(--dos-black); }
 :root[data-theme="ansiapps"] .menu-title:active:not(:disabled),
 :root[data-theme="ansiapps"] .menu-command:active:not(:disabled) { transform: none; }
 :root[data-theme="ansiapps"] .access-letter { color: var(--dos-blue); text-decoration: none; }
@@ -352,9 +353,17 @@
 :root[data-theme="ansiapps"] .menu-command:disabled .menu-shortcut { color: var(--dos-darkgray); }
 :root[data-theme="ansiapps"] .menu-shortcut { color: var(--dos-black); }
 :root[data-theme="ansiapps"] .menu-dropdown .menu-sep { background: var(--dos-black); margin: 3px 0; }
+/* Open Recent: beside its item, clear of the menu's frame. */
+:root[data-theme="ansiapps"] .menu-submenu { top: -8px; left: calc(100% + 8px); }
 :root[data-theme="ansiapps"] .menu-bar .view-tab { color: var(--dos-black); padding: 0 8px; }
 :root[data-theme="ansiapps"] .menu-bar .view-tab:hover { background: var(--dos-green); color: var(--dos-black); }
 :root[data-theme="ansiapps"] .menu-bar .view-tab.selected { background: var(--dos-cyan); color: var(--dos-black); }
 :root[data-theme="ansiapps"] .menu-bar .gear-btn { box-shadow: none; background: none; color: var(--dos-black); }
 :root[data-theme="ansiapps"] .menu-bar .gear-btn:hover { background: var(--dos-green); }
 :root[data-theme="ansiapps"] .status-bar .doc-name { color: var(--dos-white); font-size: inherit; font-weight: inherit; }
+
+/* Recent files on the blue desktop: light cyan links (contrast rank 7), white on hover (rank 5). */
+:root[data-theme="ansiapps"] .recent-list h3 { color: var(--dos-lightgray); }
+:root[data-theme="ansiapps"] .recent-list .link-btn { color: var(--dos-lightcyan); }
+:root[data-theme="ansiapps"] .recent-list .link-btn:hover { color: var(--dos-white); }
+:root[data-theme="ansiapps"] .recover-what strong { color: var(--dos-black); }

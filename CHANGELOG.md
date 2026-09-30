@@ -42,6 +42,16 @@
   Hide, Quit) and the Window menu. In a text field or dialog, ⌘C, ⌘V, ⌘Z
   and ⌘A edit the text. Quit (⌘Q) now asks about unsaved changes, as
   closing the window does.
+- **Recent files and crash recovery** (2026-09-30): File → Open Recent
+  (a submenu in both menu bars, with Clear Menu) and a Recent list on the
+  empty screen hold the last ten files opened or saved; a file that's
+  gone comes off the list when it fails to open. Unsaved changes are
+  autosaved every 10 seconds to the app-data folder, never over the file,
+  in a lossless snapshot (icy_engine's IcyDraw format plus the file's own
+  SAUCE record, format and render settings). Saving, discarding or
+  closing removes it; after a crash Stylus offers the art back at launch
+  (and under File → Recover Unsaved Art…) with its changes unsaved and
+  the original file untouched.
 - **Amiga ASCII** (2026-09-30): text files without SAUCE get a Font menu
   with the Amiga fonts, remembered per file type.
 - **UTF-8 text files** (2026-09-30) show their block characters (▀ ▄ █),
