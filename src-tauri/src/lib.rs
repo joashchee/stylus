@@ -8,6 +8,7 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use serde::Serialize;
+use stylus_core::contrast::ContrastProblem;
 use stylus_core::convert::{self, ConverterInfo};
 use stylus_core::{CellEdit, CellInfo, CellRect, Clip, Document, DocumentInfo, Pen, PngExport, PngOptions, PngSize, Point, RenderSettings, SaveFormat, SaveLoss, SauceFields, SelectionOp, Shape};
 use tauri::ipc::Response;
@@ -284,6 +285,13 @@ fn resize_art(id: u32, columns: i32, rows: i32, library: State<'_, Shared>) -> R
 fn cell_at(id: u32, x: i32, y: i32, library: State<'_, Shared>) -> Result<Option<CellInfo>, String> {
     let library = library.lock().map_err(|e| e.to_string())?;
     Ok(library.documents.get(&id).ok_or("That art isn't open")?.cell(x, y))
+}
+
+/// The contrast lint: every cell short of the contrast its role needs.
+#[tauri::command]
+fn contrast_problems(id: u32, library: State<'_, Shared>) -> Result<Vec<ContrastProblem>, String> {
+    let library = library.lock().map_err(|e| e.to_string())?;
+    Ok(library.documents.get(&id).ok_or("That art isn't open")?.contrast_problems())
 }
 
 /// Renders a rectangle of cells as raw bytes, like `render_band`.
@@ -670,6 +678,7 @@ pub fn run() {
             paste_cells,
             save_formats,
             save_losses,
+            contrast_problems,
             save_art,
             png_size,
             begin_png_export,

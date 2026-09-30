@@ -33,9 +33,10 @@ Half-block, Type, Select, Fill, Pick) with selection (cut, copy, paste,
 move, flip, fill, clear), and the menu bar over one command registry, mirrored in the macOS menu
 bar (`src-tauri/src/native_menu.rs`, `src/lib/nativeMenu.ts`), and
 recent files and crash-recovery autosave (`src-tauri/src/files.rs`,
-`stylus-core/src/recovery.rs`), and PNG export
-(`stylus-core/src/export.rs`). Next: the contrast lint, and measuring
-the IPC hot path on the M1.
+`stylus-core/src/recovery.rs`), PNG export
+(`stylus-core/src/export.rs`), and the contrast lint
+(`stylus-core/src/contrast.rs`, the Problems tab). Next: measuring the
+IPC hot path on the M1.
 
 **Viewer history, still true:** checked against libansilove on Sixteen
 Colors packs (`scripts/compare-ansilove.sh`, corpus in the scratch
@@ -107,6 +108,11 @@ draws at 16 px; Stylus is right.
     in `edit.rs`.
   - `src/export.rs`: PNG export, `PngExport` fed a band of rows at a
     time (8/9-px, aspect stretch by integer area weights).
+  - `src/contrast.rs`: the contrast checker
+    (`docs/ansiapps-color-contrast.md`): WCAG ratios on the colors a cell
+    shows, a role per character until Phase 2's roles (text 4.5:1,
+    graphics 3:1), and `Document::contrast_problems` grouped by pair.
+    Phase 2's theme mode builds on it.
   - `src/recovery.rs`: the autosave snapshot, lossless (IcyDraw plus the
     file's own SAUCE record, format name and render settings), reopened
     as unsaved changes.

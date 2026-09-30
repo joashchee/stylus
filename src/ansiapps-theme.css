@@ -322,6 +322,16 @@
 :root[data-theme="ansiapps"] .sauce-fields .muted,
 :root[data-theme="ansiapps"] .save-losses .muted { color: var(--dos-blue); }
 :root[data-theme="ansiapps"] .loss-blocking { background: var(--dos-red); color: var(--dos-white); padding: 0 4px; }
+/* Problems tab: rows are light-gray buttons (black text, blue details);
+   the chosen row is the cyan selection bar, black text only. The sample
+   shows the art's own colors in a light-cyan frame. */
+:root[data-theme="ansiapps"] .problem { color: var(--dos-black); }
+:root[data-theme="ansiapps"] .problem-detail { color: var(--dos-blue); }
+:root[data-theme="ansiapps"] .problem.selected,
+:root[data-theme="ansiapps"] .problem.selected:hover { background: var(--dos-cyan); color: var(--dos-black); }
+:root[data-theme="ansiapps"] .problem.selected .problem-detail { color: var(--dos-black); }
+:root[data-theme="ansiapps"] .problem-sample { border: 1px solid var(--dos-lightcyan); line-height: 16px; font-size: 16px; }
+:root[data-theme="ansiapps"] .problem:active:not(:disabled) { transform: none; }
 :root[data-theme="ansiapps"] .size-presets .selected { background: var(--dos-cyan); color: var(--dos-black); }
 :root[data-theme="ansiapps"] .dialog-box .toggle { color: var(--dos-black); }
 

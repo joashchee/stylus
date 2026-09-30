@@ -3,7 +3,7 @@
  * the canvas with a text cursor, the tools (Pencil, Eraser, Line,
  * Rectangle, Box, Half-block, Type, Select, Fill, Pick), selection with
  * cut, copy, paste, move, flip, fill and clear, the F-key strip, the
- * Character, Colors and SAUCE panels, and the status bar. Its commands
+ * Character, Colors, SAUCE and Problems panels, and the status bar. Its commands
  * (Edit, Draw, Select, Colors, zoom) are in the menu bar through the
  * command registry (lib/commands.ts), which also runs their shortcuts.
  *
@@ -13,13 +13,18 @@
  * cells each one changed are redrawn. A shape being dragged is redrawn by
  * the core at each move (`drawShape`), so its preview is the art itself;
  * moves that arrive while one is drawing collapse into the latest.
+ *
+ * The contrast lint (View → Check Contrast, on per document) lists text and
+ * graphics short of the contrast list's ratios in the Problems tab and
+ * marks their cells on the canvas; it's checked again after every edit.
  */
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { ArtViewer, CellBox, type ArtViewerHandle, type Cell, type Zoom } from "./ArtViewer";
 import { SaucePanel } from "./SaucePanel";
 import {
   applyEdits,
   cellAt,
+  contrastProblems,
   copyCells,
   drawShape,
   floodFill,
@@ -32,6 +37,7 @@ import {
   type CellEdit,
   type CellInfo,
   type CellRect,
+  type ContrastProblem,
   type DocumentInfo,
   type EditResult,
   type OpenedArt,
@@ -47,7 +53,34 @@ type RunActivity = <T>(label: string, task: (update: ActivityUpdate) => Promise<
 
 export type Tool = "pencil" | "eraser" | "line" | "rectangle" | "box" | "halfblock" | "type" | "select" | "fill" | "pick";
 type PaintMode = "both" | "color" | "char";
-type PanelTab = "character" | "colors" | "sauce";
+type PanelTab = "character" | "colors" | "sauce" | "problems";
+
+const PANEL_TABS: { id: PanelTab; label: string }[] = [
+  { id: "character", label: "Character" },
+  { id: "colors", label: "Colors" },
+  { id: "sauce", label: "SAUCE" },
+  { id: "problems", label: "Problems" },
+];
+
+/** A contrast problem's key: its role and color pair. */
+function problemKey(p: ContrastProblem) {
+  return `${p.role} ${p.fg.join(",")} ${p.bg.join(",")}`;
+}
+
+function colorLabel(rgb: [number, number, number], name: string | null) {
+  return name ?? `#${rgb.map((c) => c.toString(16).padStart(2, "0")).join("")}`;
+}
+
+/** Outlines around cells (as `y * columns + x`), in one SVG path over the art. */
+function CellMarks({ info, cells, className }: { info: DocumentInfo; cells: number[]; className: string }) {
+  const d = useMemo(() => cells.map((i) => `M${i % info.columns} ${Math.floor(i / info.columns)}h1v1h-1z`).join(""), [cells, info.columns]);
+  return (
+    <svg className={className} viewBox={`0 0 ${info.columns} ${info.rows}`} preserveAspectRatio="none" aria-hidden="true">
+      <path className="mark-under" d={d} />
+      <path className="mark-over" d={d} />
+    </svg>
+  );
+}
 
 /** The 16 VGA text-mode colors, for the swatches (the art's colors, not the theme's). */
 export const VGA_COLORS = [
@@ -143,6 +176,13 @@ export function ArtEditor({ art, onInfo, runActivity, onError, active }: ArtEdit
   /** How far a selection being dragged has moved, for its outline. */
   const [moveOffset, setMoveOffset] = useState<Cell | null>(null);
   const [clip, setClip] = useState<{ width: number; height: number } | null>(null);
+  /** Documents with the contrast lint on. */
+  const [lintOn, setLintOn] = useState<ReadonlySet<number>>(new Set());
+  const lint = lintOn.has(art.id);
+  const [problems, setProblems] = useState<ContrastProblem[]>([]);
+  const [chosenProblem, setChosenProblem] = useState<string | null>(null);
+  /** Counts changes to the art, so the lint runs again after each. */
+  const [revision, setRevision] = useState(0);
 
   // A new document starts at the top left.
   useEffect(() => {
@@ -150,6 +190,7 @@ export function ArtEditor({ art, onInfo, runActivity, onError, active }: ArtEdit
     setHover(null);
     setSelection(null);
     anchor.current = null;
+    setChosenProblem(null);
   }, [art.id]);
 
   // A resize (or undoing one) cuts the selection to the canvas.
@@ -182,6 +223,7 @@ export function ArtEditor({ art, onInfo, runActivity, onError, active }: ArtEdit
         onInfo({ ...infoRef.current, canUndo: result.canUndo, canRedo: result.canRedo, edited: result.edited });
       }
       if (result.dirty && !result.info) await viewer.current?.redraw(result.dirty);
+      if (result.dirty || result.info) setRevision((r) => r + 1);
     },
     [onInfo],
   );
@@ -203,6 +245,48 @@ export function ArtEditor({ art, onInfo, runActivity, onError, active }: ArtEdit
     () => enqueue(async () => afterEdit(await redoEdit(art.id))).catch((e) => onError(`Couldn't redo: ${e}`)),
     [art.id, enqueue, afterEdit, onError],
   );
+
+  // The contrast lint, run again a moment after the art or its colors change.
+  useEffect(() => {
+    if (!lint) {
+      setProblems([]);
+      return;
+    }
+    let current = true;
+    const timer = window.setTimeout(() => {
+      enqueue(() => contrastProblems(art.id)).then(
+        (p) => current && setProblems(p),
+        (e) => current && onError(`Couldn't check contrast: ${e}`),
+      );
+    }, 200);
+    return () => {
+      current = false;
+      window.clearTimeout(timer);
+    };
+  }, [lint, art.id, revision, info.columns, info.rows, info.settings.iceColors, info.font, enqueue, onError]);
+
+  function setLint(on: boolean) {
+    setLintOn((docs) => {
+      const next = new Set(docs);
+      if (on) next.add(art.id);
+      else next.delete(art.id);
+      return next;
+    });
+    if (!on) setChosenProblem(null);
+  }
+
+  const failing = useMemo(() => problems.flatMap((p) => p.cells), [problems]);
+  const chosen = problems.find((p) => problemKey(p) === chosenProblem) ?? null;
+
+  function chooseProblem(p: ContrastProblem) {
+    const key = problemKey(p);
+    if (key === chosenProblem) {
+      setChosenProblem(null);
+      return;
+    }
+    setChosenProblem(key);
+    moveCursor({ x: p.cells[0] % info.columns, y: Math.floor(p.cells[0] / info.columns) });
+  }
 
   /** Runs one core call after every earlier edit, and shows what it changed. */
   const run = useCallback(
@@ -514,6 +598,7 @@ export function ArtEditor({ art, onInfo, runActivity, onError, active }: ArtEdit
     "view.zoomOut": { run: () => zoomBy(-1), enabled: zoom !== 1 },
     "view.actualSize": { run: () => setZoom(1), checked: zoom === 1 },
     "view.fit": { run: () => setZoom("fit"), checked: zoom === "fit" },
+    "view.contrastLint": { run: () => setLint(!lint), checked: lint },
   };
   for (const t of TOOLS) handlers[`tool.${t.id}`] = { run: () => chooseTool(t.id), checked: tool === t.id };
   useCommands("art-editor", active ? handlers : {});
@@ -748,6 +833,8 @@ export function ArtEditor({ art, onInfo, runActivity, onError, active }: ArtEdit
                     className="selection-box"
                   />
                 )}
+                {lint && failing.length > 0 && <CellMarks info={info} cells={failing} className="contrast-marks" />}
+                {chosen && <CellMarks info={info} cells={chosen.cells} className="contrast-marks chosen" />}
               </>
             }
           />
@@ -755,17 +842,18 @@ export function ArtEditor({ art, onInfo, runActivity, onError, active }: ArtEdit
 
         <aside className="panel context-panel" data-testid="context-panel">
           <div className="panel-tabs" role="tablist">
-            {(["character", "colors", "sauce"] as PanelTab[]).map((t) => (
+            {PANEL_TABS.map((t) => (
               <button
-                key={t}
+                key={t.id}
                 type="button"
                 role="tab"
-                aria-selected={tab === t}
-                className={`panel-tab${tab === t ? " selected" : ""}`}
-                data-testid={`panel-tab-${t}`}
-                onClick={() => setTab(t)}
+                aria-selected={tab === t.id}
+                className={`panel-tab${tab === t.id ? " selected" : ""}`}
+                data-testid={`panel-tab-${t.id}`}
+                onClick={() => setTab(t.id)}
               >
-                {t === "character" ? "Character" : t === "colors" ? "Colors" : "SAUCE"}
+                {t.label}
+                {t.id === "problems" && problems.length > 0 && <span className="tab-count"> {problems.length}</span>}
               </button>
             ))}
           </div>
@@ -826,6 +914,53 @@ export function ArtEditor({ art, onInfo, runActivity, onError, active }: ArtEdit
             </div>
           )}
           {tab === "sauce" && <SaucePanel name={art.name} info={info} embedded />}
+          {tab === "problems" && (
+            <div className="problems-panel" data-testid="problems-panel">
+              <label className="tool-option">
+                <input type="checkbox" data-testid="contrast-lint" checked={lint} onChange={(e) => setLint(e.currentTarget.checked)} />
+                <span>Check contrast</span>
+              </label>
+              <p className="desc">
+                Letters, digits and punctuation are text and need 4.5:1 against their background. Symbols, shades, half blocks and line drawing need 3:1.
+                Blanks and full blocks are skipped.
+              </p>
+              {lint && problems.length === 0 && <p className="desc">No problems: every character has the contrast it needs.</p>}
+              {problems.length > 0 && (
+                <ul className="problem-list" aria-label="Contrast problems">
+                  {problems.map((p) => {
+                    const key = problemKey(p);
+                    const fgLabel = colorLabel(p.fg, p.fgName);
+                    const bgLabel = colorLabel(p.bg, p.bgName).toLowerCase();
+                    const count = p.cells.length;
+                    return (
+                      <li key={key}>
+                        <button
+                          type="button"
+                          className={`problem${key === chosenProblem ? " selected" : ""}`}
+                          aria-pressed={key === chosenProblem}
+                          data-testid="contrast-problem"
+                          title="Show these cells on the art"
+                          onClick={() => chooseProblem(p)}
+                        >
+                          <span className="problem-sample" aria-hidden="true" style={{ color: `rgb(${p.fg.join(",")})`, background: `rgb(${p.bg.join(",")})` }}>
+                            {p.role === "text" ? "Aa" : "▒"}
+                          </span>
+                          <span className="problem-text">
+                            <span className="problem-pair">
+                              {p.role === "text" ? "Text" : "Graphics"}: {fgLabel} on {bgLabel}
+                            </span>
+                            <span className="problem-detail">
+                              {p.ratio.toFixed(2)}:1, needs {p.needs}:1 · {count} {count === 1 ? "cell" : "cells"}
+                            </span>
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          )}
         </aside>
       </div>
 

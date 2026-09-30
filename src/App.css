@@ -443,6 +443,23 @@ select {
 .pen-sample { display: inline-block; width: 2.2em; text-align: center; font-family: var(--font-mono); font-size: 16px; line-height: 1.4; border: 1px solid var(--line); }
 .status-bar { display: flex; flex-wrap: wrap; gap: 4px 16px; padding: 4px 8px; font-size: 12px; font-family: var(--font-mono); color: var(--muted); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; }
 .sauce-panel.embedded { position: static; }
+/* The contrast lint (ArtEditor's Problems tab). Marks are white on a black
+   line, readable on any art; the chosen problem's cells are solid. */
+.contrast-marks { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.contrast-marks path { fill: none; vector-effect: non-scaling-stroke; }
+.contrast-marks .mark-under { stroke: #000; stroke-width: 3px; }
+.contrast-marks .mark-over { stroke: #fff; stroke-width: 1px; stroke-dasharray: 2 2; }
+.contrast-marks.chosen .mark-under { stroke-width: 4px; }
+.contrast-marks.chosen .mark-over { stroke-width: 2px; stroke-dasharray: none; }
+.problems-panel .desc { margin: 6px 0 10px; }
+.problem-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.problem { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 6px 8px; }
+.problem.selected { border-color: var(--accent); }
+.problem-sample { flex: none; width: 2.6em; text-align: center; font-family: var(--font-mono); font-size: 14px; line-height: 1.5; border: 1px solid var(--line); }
+.problem-text { display: flex; flex-direction: column; min-width: 0; }
+.problem-pair { font-size: 13px; }
+.problem-detail { font-size: 12px; color: var(--muted); }
+.tab-count { font-variant-numeric: tabular-nums; }
 .empty-actions { display: flex; justify-content: center; gap: 10px; }
 /* Forms in dialogs (New, Save) */
 .form-row { display: grid; grid-template-columns: 90px minmax(0, 1fr); align-items: center; gap: 10px; margin: 0 0 8px; font-size: 13px; }

@@ -236,6 +236,24 @@ export interface SaveLoss {
   message: string;
 }
 
+/**
+ * Cells of one role and color pair short of the contrast they need (the
+ * contrast lint); mirrors stylus-core's `ContrastProblem`.
+ */
+export interface ContrastProblem {
+  role: "text" | "graphic";
+  fg: [number, number, number];
+  bg: [number, number, number];
+  /** The contrast list's names, for the 16 VGA colors. */
+  fgName: string | null;
+  bgName: string | null;
+  ratio: number;
+  /** 4.5 for text, 3 for graphics. */
+  needs: number;
+  /** The failing cells, as `y * columns + x`. */
+  cells: number[];
+}
+
 /** The SAUCE text a save writes; mirrors stylus-core's `SauceFields`. */
 export interface SauceFields {
   title: string;
@@ -292,6 +310,10 @@ export function saveFormats(): Promise<SaveFormat[]> {
 
 export function saveLosses(id: number, extension: string): Promise<SaveLoss[]> {
   return invoke<SaveLoss[]>("save_losses", { id, extension });
+}
+
+export function contrastProblems(id: number): Promise<ContrastProblem[]> {
+  return invoke<ContrastProblem[]>("contrast_problems", { id });
 }
 
 /**

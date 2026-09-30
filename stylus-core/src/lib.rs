@@ -3,6 +3,7 @@
 //! compile it to WebAssembly. See Diskette's docs/stylus-notes.md,
 //! "Architecture".
 
+pub mod contrast;
 pub mod convert;
 mod document;
 mod edit;

@@ -159,9 +159,10 @@ ID-signed, notarized, the in-development warning on).
   so the keys do the same whichever of the webview and the menu sees
   them first. Keys without ⌘ never go to the menu. Quit closes the
   window, so unsaved changes are asked about. Still to try in the app
-  (the App Testing "Native menu" items). **Left:** document tabs, the
-  Properties and Problems tabs, the rail's icons and flyouts, and the
-  resizable panel.
+  (the App Testing "Native menu" items). The Problems tab (2026-09-30)
+  with the contrast lint as its first source. **Left:** document tabs,
+  the Properties tab, save losses in Problems, the rail's icons and
+  flyouts, and the resizable panel.
 - [x] **Files:** new, save, save as, recent files, unsaved-change
   prompts, and autosave to the app-data folder for crash recovery
   (never over the user's file). **Done 2026-09-30:** new, save (asks the
@@ -205,9 +206,20 @@ ID-signed, notarized, the in-development warning on).
   weights in integer maths (a flat area keeps its exact color, and any
   band size gives the same bytes). iCE follows the document. Still to
   try in the app (the App Testing "Export PNG" items).
-- [ ] **Contrast lint:** the checker from
+- [x] **Contrast lint:** the checker from
   `docs/ansiapps-color-contrast.md`, available on any document (theme
-  mode enforces it in Phase 2).
+  mode enforces it in Phase 2). **Done 2026-09-30**
+  (`stylus-core/src/contrast.rs`, View → Check Contrast, on per
+  document): the WCAG ratio of each cell's colors as shown (the
+  document's palette, bold as bright, 24-bit as is), text under 4.5:1
+  and graphics under 3:1 listed by color pair in the Problems tab (its
+  first source) and outlined on the art, checked again after every
+  edit. Until Phase 2's Role tool, the role comes from the character:
+  letters, digits and punctuation are text; symbols, shades, half blocks
+  and line drawing are graphics; blanks and █ are skipped; hidden text
+  (foreground = background) is listed. **Left for Phase 2:** roles per
+  cell, decorative cells, and graphics against their neighbors. Still to
+  try in the app (the App Testing "Contrast lint" items).
 - [x] **Round-trip check:** `scripts/roundtrip-corpus.sh` opens every
   corpus file, saves it in its own format and as `.ANS` and `.XB`,
   reopens each and compares pixels. **Done 2026-09-30:** on 181 files,

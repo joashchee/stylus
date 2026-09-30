@@ -132,5 +132,13 @@ export const CHECKLIST_DATA: ChecklistItem[] = [
   { id: "recover-exact", section: "Recent and recovery", label: "Recover art with SAUCE, 9-px spacing, iCE off and blinking text; all of it comes back as it was, and Save As offers the SAUCE title and author" },
   { id: "recover-clean", section: "Recent and recovery", label: "Draw, wait 10 seconds, then Save (or quit and Discard changes); relaunch and nothing is offered. Later in the dialog keeps it for File → Recover Unsaved Art…; Discard removes it" },
   { id: "recover-themes", section: "Recent and recovery", label: "Check Open Recent's submenu, the Recent list on the empty screen and the Recover dialog in both themes" },
+  // Contrast lint (Phase 1c, 2026-09-30)
+  { id: "lint-on", section: "Contrast lint", label: "Open art, then View → Check Contrast (or tick Check contrast in the Problems tab). The tab shows a count, never opens itself, and failing cells get a dashed outline on the art", selector: '[data-testid="panel-tab-problems"]' },
+  { id: "lint-rows", section: "Contrast lint", label: "New art, type a word in light red on blue: Problems lists \"Text: Light red on blue, 4.23:1, needs 4.5:1\" with the cell count. The same word in white on blue isn't listed", selector: '[data-testid="problems-panel"]' },
+  { id: "lint-graphics", section: "Contrast lint", label: "Draw a box in blue on black: it's listed under Graphics (needs 3:1). Shades in light red on blue aren't (4.23:1 is enough for graphics); full blocks and blanks are never listed" },
+  { id: "lint-choose", section: "Contrast lint", label: "Click a problem: its cells get a solid outline, the cursor jumps to the first and the art scrolls to it; click it again to let go" },
+  { id: "lint-live", section: "Contrast lint", label: "Recolor a failing word to white; its row goes within a moment. ⌘Z brings it back. Switching iCE Colors changes the list where bright backgrounds are used" },
+  { id: "lint-per-doc", section: "Contrast lint", label: "Turn the lint on for one file, open another: it's off there; reopen the first in this session and it's on again" },
+  { id: "lint-themes", section: "Contrast lint", label: "Check the Problems tab (rows, the chosen row, the samples) and the outlines on light and dark art in both themes" },
   { id: "edit-themes", section: "Editor", label: "Check the editor in both themes: menu bar and its menus, tool rail (with its options and Selection buttons), the selection outline, panels, strip, status bar and the Save and New dialogs are readable, and the art's colors never change" },
 ];

@@ -143,6 +143,8 @@ export const MENUS: MenuDef[] = [
       { id: "view.letterSpacing", label: "9-px Spacing" },
       { id: "view.aspect", label: "Aspect Ratio" },
       { group: "view.textFont" },
+      "-",
+      { id: "view.contrastLint", label: "Check Contrast" },
     ],
   },
   {

@@ -56,6 +56,14 @@
   its own pixel size, in 8- or 9-px cells, optionally stretched to the
   original screen's aspect, with a progress bar over the rows. It starts
   from how the art is shown and leaves the view as it was.
+- **Contrast lint** (2026-09-30): View → Check Contrast, on per
+  document, lists in a new Problems tab every text cell under 4.5:1 and
+  every graphic (symbols, shades, half blocks, line drawing) under 3:1
+  against its background, grouped by color pair with the ratio and cell
+  count, by the ANSIapps contrast rules. Failing cells are outlined on
+  the art; choosing a row outlines its cells and moves the cursor there.
+  Ratios use the colors the art shows (its palette, bold as bright,
+  24-bit as is) and are checked again after every edit.
 - **Amiga ASCII** (2026-09-30): text files without SAUCE get a Font menu
   with the Amiga fonts, remembered per file type.
 - **UTF-8 text files** (2026-09-30) show their block characters (▀ ▄ █),
