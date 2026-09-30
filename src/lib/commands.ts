@@ -61,6 +61,8 @@ export const MENUS: MenuDef[] = [
       "-",
       { id: "file.save", label: "Save", shortcut: "mod+s" },
       { id: "file.saveAs", label: "Save As…", shortcut: "mod+shift+s" },
+      "-",
+      { id: "file.exportPng", label: "Export PNG…", shortcut: "mod+shift+e" },
     ],
   },
   {

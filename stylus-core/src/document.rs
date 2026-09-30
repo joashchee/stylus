@@ -167,6 +167,16 @@ impl Document {
         }
     }
 
+    /// Runs `f` with 8- or 9-px cells, then puts the view's setting back:
+    /// for exports that differ from what's on screen.
+    pub(crate) fn with_letter_spacing<R>(&mut self, letter_spacing: bool, f: impl FnOnce(&Self) -> R) -> R {
+        let shown = self.buffer.use_letter_spacing();
+        self.buffer.set_use_letter_spacing(letter_spacing);
+        let result = f(self);
+        self.buffer.set_use_letter_spacing(shown);
+        result
+    }
+
     /// iCE is decided when icy_engine parses the file: the attribute byte's
     /// high bit becomes either a bright background (iCE, from SAUCE) or the
     /// blink flag (everything else, including files without SAUCE). In

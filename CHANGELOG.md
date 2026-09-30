@@ -52,6 +52,10 @@
   closing removes it; after a crash Stylus offers the art back at launch
   (and under File → Recover Unsaved Art…) with its changes unsaved and
   the original file untouched.
+- **Export PNG** (2026-09-30): File → Export PNG… (⇧⌘E) writes the art at
+  its own pixel size, in 8- or 9-px cells, optionally stretched to the
+  original screen's aspect, with a progress bar over the rows. It starts
+  from how the art is shown and leaves the view as it was.
 - **Amiga ASCII** (2026-09-30): text files without SAUCE get a Font menu
   with the Amiga fonts, remembered per file type.
 - **UTF-8 text files** (2026-09-30) show their block characters (▀ ▄ █),

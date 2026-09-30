@@ -8,6 +8,7 @@ import { AppTesting } from "./components/AppTesting";
 import { ArtEditor } from "./components/ArtEditor";
 import { Dialog } from "./components/Dialog";
 import { SaveDialog, sauceFieldsOf } from "./components/SaveDialog";
+import { ExportPngDialog } from "./components/ExportPngDialog";
 import { ImageToAnsi } from "./components/ImageToAnsi";
 import { MenuBar, ShortcutList } from "./components/MenuBar";
 import { AppMarkIcon, ChecklistIcon, FolderIcon, GearIcon, InfoIcon } from "./components/icons";
@@ -33,6 +34,8 @@ import {
   saveArt,
   saveFormats,
   saveLosses,
+  exportPng,
+  type PngOptions,
   setRenderSettings,
   setTextFont,
   textFonts,
@@ -122,6 +125,7 @@ function App() {
   const [fonts, setFonts] = useState<string[]>([]);
   const [saveMode, setSaveMode] = useState<"save" | "save-as" | null>(null);
   const [newOpen, setNewOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const [newSize, setNewSize] = useState({ columns: 80, rows: 25, ice: true });
   /** Something waiting on "discard the unsaved changes?" */
   const [discardThen, setDiscardThen] = useState<(() => void) | null>(null);
@@ -297,6 +301,7 @@ function App() {
     ...(recoverList.length > 0 ? { "file.recover.open": { run: () => setRecoverOpen(true), label: "Recover Unsaved Art…" } } : {}),
     "file.save": { run: () => void saveCurrent(), enabled: onArt },
     "file.saveAs": { run: () => setSaveMode("save-as"), enabled: onArt },
+    "file.exportPng": { run: () => setExportOpen(true), enabled: onArt },
     "colors.ice": { run: () => void changeSettings({ iceColors: !art?.info.settings.iceColors }), enabled: onArt, checked: !!art?.info.settings.iceColors },
     "view.letterSpacing": { run: () => void changeSettings({ letterSpacing: !art?.info.settings.letterSpacing }), enabled: onArt, checked: !!art?.info.settings.letterSpacing },
     "view.aspect": { run: () => void changeSettings({ aspectRatio: !art?.info.settings.aspectRatio }), enabled: onArt, checked: !!art?.info.settings.aspectRatio },
@@ -320,6 +325,20 @@ function App() {
       .setTitle(title)
       .catch(() => undefined);
   }, [title]);
+
+  async function exportArtPng(path: string, options: PngOptions) {
+    const doc = artRef.current;
+    if (!doc) return;
+    setExportOpen(false);
+    setError(null);
+    const name = fileName(path);
+    try {
+      await runActivity(`Exporting ${name}…`, (update) => exportPng(doc.id, path, options, (value) => update({ value })));
+      setStatus(`Exported ${name}`);
+    } catch (e) {
+      setError(`Couldn't export ${name}: ${e}`);
+    }
+  }
 
   function onSaved(info: DocumentInfo, path: string) {
     const name = fileName(path);
@@ -555,7 +574,7 @@ function App() {
             onInfo={updateInfo}
             runActivity={runActivity}
             onError={setError}
-            active={view === "art" && saveMode === null && !newOpen && discardThen === null && !recoverOpen}
+            active={view === "art" && saveMode === null && !newOpen && !exportOpen && discardThen === null && !recoverOpen}
           />
         ) : (
           <section className="panel empty-state">
@@ -606,6 +625,10 @@ function App() {
           onSaved={onSaved}
           onError={setError}
         />
+      )}
+
+      {art && (
+        <ExportPngDialog open={exportOpen} art={art} onClose={() => setExportOpen(false)} onExport={(path, options) => void exportArtPng(path, options)} onError={setError} />
       )}
 
       <Dialog

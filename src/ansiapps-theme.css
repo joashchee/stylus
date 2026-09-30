@@ -187,6 +187,19 @@
 :root[data-theme="ansiapps"] input[type="checkbox"]::before { content: "[ ]"; }
 :root[data-theme="ansiapps"] input[type="checkbox"]:checked::before { content: "[X]"; }
 :root[data-theme="ansiapps"] input[type="checkbox"]:disabled { color: var(--dos-darkgray); }
+/* Radio buttons drawn as ( ) and (•) */
+:root[data-theme="ansiapps"] input[type="radio"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: auto !important;
+  height: auto !important;
+  margin: 0;
+  font-family: var(--font-mono);
+  color: inherit;
+}
+:root[data-theme="ansiapps"] input[type="radio"]::before { content: "( )"; }
+:root[data-theme="ansiapps"] input[type="radio"]:checked::before { content: "(\2022)"; }
+:root[data-theme="ansiapps"] input[type="radio"]:disabled { color: var(--dos-darkgray); }
 
 :root[data-theme="ansiapps"] .dialog-overlay { background: rgba(0, 0, 0, 0.35); backdrop-filter: none; transition: none; }
 :root[data-theme="ansiapps"] .dialog-box {
@@ -302,8 +315,10 @@
 :root[data-theme="ansiapps"] .form-row select { background: var(--dos-black); color: var(--dos-lightgray); border: none; caret-color: var(--dos-white); }
 :root[data-theme="ansiapps"] .form-row span,
 :root[data-theme="ansiapps"] .sauce-fields legend,
+:root[data-theme="ansiapps"] .option-group legend,
 :root[data-theme="ansiapps"] .save-losses { color: var(--dos-black); }
-:root[data-theme="ansiapps"] .sauce-fields { border: 1px solid var(--dos-black); }
+:root[data-theme="ansiapps"] .sauce-fields,
+:root[data-theme="ansiapps"] .option-group { border: 1px solid var(--dos-black); }
 :root[data-theme="ansiapps"] .sauce-fields .muted,
 :root[data-theme="ansiapps"] .save-losses .muted { color: var(--dos-blue); }
 :root[data-theme="ansiapps"] .loss-blocking { background: var(--dos-red); color: var(--dos-white); padding: 0 4px; }

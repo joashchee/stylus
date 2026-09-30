@@ -303,6 +303,43 @@ export function saveArt(id: number, path: string, sauce: SauceFields, replace: b
   return invoke<DocumentInfo>("save_art", { id, path, sauce, replace });
 }
 
+/** How to export a PNG; mirrors stylus-core's `PngOptions`. iCE follows the document. */
+export interface PngOptions {
+  /** 9-px cells (fonts 8 px wide only). */
+  letterSpacing: boolean;
+  /** Stretch to the original display's aspect. */
+  aspectRatio: boolean;
+}
+
+export function pngSize(id: number, options: PngOptions): Promise<{ width: number; height: number }> {
+  return invoke("png_size", { id, options });
+}
+
+/** Rows written per call: small enough for a smooth bar, large enough that IPC doesn't dominate. */
+const PNG_EXPORT_ROWS = 50;
+
+/**
+ * Exports the art as a PNG at `path`, which the system dialog has already
+ * cleared to replace. `onProgress` gets 0–1 as rows are written. Nothing
+ * is left at `path` if it fails.
+ */
+export async function exportPng(id: number, path: string, options: PngOptions, onProgress: (value: number) => void): Promise<void> {
+  const { export: job, rows } = await invoke<{ export: number; rows: number }>("begin_png_export", { id, path, options });
+  let done = 0;
+  try {
+    // The call that writes the last row also finishes the file.
+    for (;;) {
+      done = await invoke<number>("png_export_rows", { export: job, rows: PNG_EXPORT_ROWS });
+      onProgress(rows > 0 ? done / rows : 1);
+      if (done >= rows) break;
+    }
+  } catch (e) {
+    // A failed call has already removed the export; this is for anything else.
+    await invoke("cancel_png_export", { export: job }).catch(() => undefined);
+    throw e;
+  }
+}
+
 export function textFonts(): Promise<string[]> {
   return invoke<string[]>("text_fonts");
 }

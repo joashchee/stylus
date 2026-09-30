@@ -84,6 +84,11 @@ export const CHECKLIST_DATA: ChecklistItem[] = [
   { id: "save-sauce", section: "Editor", label: "Fill in title, author, group and a comment, save, then open the file; the SAUCE panel shows them, with today's date for new art and the original date for opened art" },
   { id: "save-replace", section: "Editor", label: "Open a file, change it, press ⌘S; the dialog says it will replace the file. Replace, change it again, ⌘S; it saves without asking" },
   { id: "save-roundtrip", section: "Editor", label: "Save the same art as .ANS, .XB, .BIN, .ADF and .IDF and open each; they look the same as the original" },
+  { id: "png-export", section: "Editor", label: "File → Export PNG… (⇧⌘E); the dialog starts from the view's 9-px and aspect settings and shows the pixel size, which changes as you tick them. Choose where…, save; a bar counts the rows, and the PNG opens in Preview matching the art", selector: '[data-testid="menu-file"]' },
+  { id: "png-export-options", section: "Editor", label: "Export the same art at 8 px, 9 px and with aspect correction; the 9-px PNG is a ninth wider with box lines joined, the aspect one is 1.2× (1.35× at 9 px) taller with no uneven stripes in flat areas, and the view's settings are unchanged afterwards" },
+  { id: "png-export-font", section: "Editor", label: "Export an XBin or Amiga text file whose font isn't 8 px wide; the letter-spacing choice is greyed out and names the font's width" },
+  { id: "png-export-long", section: "Editor", label: "Export a very long ANSI (1000+ rows); the bar fills steadily, and the PNG is complete to the last row. Replace an existing PNG through the system dialog; it's replaced whole" },
+  { id: "png-export-themes", section: "Editor", label: "Open the Export PNG dialog in both themes; the radio buttons, checkbox and size line are readable (( ) and (•) in the ANSIapps theme)" },
   { id: "save-discard", section: "Editor", label: "With unsaved changes, Open another file, choose New, or close the window; Stylus asks before discarding, and Keep editing keeps them" },
 
   // Tools and selection (Phase 1c, 2026-09-30)

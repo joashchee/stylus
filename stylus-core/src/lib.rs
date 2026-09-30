@@ -6,11 +6,13 @@
 pub mod convert;
 mod document;
 mod edit;
+mod export;
 mod recovery;
 mod sauce;
 mod tools;
 
 pub use document::{Band, Document, DocumentInfo, RenderSettings};
+pub use export::{PngExport, PngOptions, PngSize};
 pub use edit::{CellEdit, CellInfo, CellRect, SaveFormat, SaveLoss, SauceFields, MAX_COLUMNS, MAX_ROWS, SAVE_FORMATS, TEXT_FONTS};
 pub use sauce::{decode_cp437, SauceInfo};
 pub use tools::{line_points, rect_between, Clip, Pen, Point, SelectionOp, Shape};

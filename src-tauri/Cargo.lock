@@ -4749,6 +4749,7 @@ dependencies = [
  "icy_engine",
  "icy_sauce",
  "image",
+ "png 0.18.1",
  "serde",
 ]
 

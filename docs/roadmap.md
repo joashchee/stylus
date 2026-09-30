@@ -195,8 +195,16 @@ ID-signed, notarized, the in-development warning on).
   and comments in the Save dialog; flags and font from the document; the
   file's own date kept (today for new art); one record, tested.
   **Left:** editing in the SAUCE panel itself.
-- [ ] **PNG export:** native pixel size, 8/9-px spacing, optional
-  aspect correction, determinate progress over rows.
+- [x] **PNG export:** native pixel size, 8/9-px spacing, optional
+  aspect correction, determinate progress over rows. **Done
+  2026-09-30** (`stylus-core/src/export.rs`, File → Export PNG…, ⇧⌘E):
+  the viewer's own pixels, streamed into the PNG 50 rows at a time so a
+  long ANSI is never one image in memory, written beside the target and
+  moved over it at the end. The dialog starts from the view's settings
+  without changing them. Aspect correction resamples rows with area
+  weights in integer maths (a flat area keeps its exact color, and any
+  band size gives the same bytes). iCE follows the document. Still to
+  try in the app (the App Testing "Export PNG" items).
 - [ ] **Contrast lint:** the checker from
   `docs/ansiapps-color-contrast.md`, available on any document (theme
   mode enforces it in Phase 2).

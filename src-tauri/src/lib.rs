@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex};
 
 use serde::Serialize;
 use stylus_core::convert::{self, ConverterInfo};
-use stylus_core::{CellEdit, CellInfo, CellRect, Clip, Document, DocumentInfo, Pen, Point, RenderSettings, SaveFormat, SaveLoss, SauceFields, SelectionOp, Shape};
+use stylus_core::{CellEdit, CellInfo, CellRect, Clip, Document, DocumentInfo, Pen, PngExport, PngOptions, PngSize, Point, RenderSettings, SaveFormat, SaveLoss, SauceFields, SelectionOp, Shape};
 use tauri::ipc::Response;
 use tauri::{AppHandle, Manager, State};
 
@@ -34,6 +34,20 @@ struct Library {
     /// What each autosave last wrote (files.rs), by recovery key: the
     /// document's version and render settings, so an unchanged one is skipped.
     autosaved: HashMap<String, (u64, RenderSettings)>,
+    /// PNG exports under way, by export id.
+    exports: HashMap<u32, PngJob>,
+}
+
+/// A PNG export being written to a temporary file beside `target`, moved
+/// over it once the last row is in, so a failed or cancelled export leaves
+/// nothing half-written.
+struct PngJob {
+    document: u32,
+    export: PngExport<std::io::BufWriter<std::fs::File>>,
+    /// The same file, kept to sync it once the PNG is finished.
+    file: std::fs::File,
+    temp: std::path::PathBuf,
+    target: std::path::PathBuf,
 }
 
 type Shared = Arc<Mutex<Library>>;
@@ -356,6 +370,106 @@ fn write_file(path: &Path, bytes: &[u8], replace: bool) -> std::io::Result<()> {
     result
 }
 
+/// The size a PNG export would be, for the export dialog.
+#[tauri::command]
+fn png_size(id: u32, options: PngOptions, library: State<'_, Shared>) -> Result<PngSize, String> {
+    let mut library = library.lock().map_err(|e| e.to_string())?;
+    Ok(library.documents.get_mut(&id).ok_or("That art isn't open")?.png_size(options))
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PngStarted {
+    export: u32,
+    /// Art rows to write, for the progress bar.
+    rows: i32,
+}
+
+/// Starts exporting a document to a PNG at `path`. The frontend then calls
+/// `png_export_rows` until every row is written. The system save dialog has
+/// already asked before replacing a file.
+#[tauri::command]
+fn begin_png_export(id: u32, path: String, options: PngOptions, library: State<'_, Shared>) -> Result<PngStarted, String> {
+    let target = std::path::PathBuf::from(&path);
+    let name = target.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+    let temp = target.with_file_name(format!(".{name}.stylus-saving"));
+    let mut library = library.lock().map_err(|e| e.to_string())?;
+    let document = library.documents.get_mut(&id).ok_or("That art isn't open")?;
+    let file = std::fs::File::create(&temp).map_err(|e| e.to_string())?;
+    let started = file
+        .try_clone()
+        .map_err(|e| e.to_string())
+        .and_then(|clone| PngExport::begin(document, options, std::io::BufWriter::new(clone)));
+    let export = match started {
+        Ok(export) => export,
+        Err(e) => {
+            let _ = std::fs::remove_file(&temp);
+            return Err(e);
+        }
+    };
+    let rows = export.rows();
+    library.next_id += 1;
+    let export_id = library.next_id;
+    library.exports.insert(export_id, PngJob { document: id, export, file, temp, target });
+    Ok(PngStarted { export: export_id, rows })
+}
+
+/// Writes the next `rows` art rows of a PNG export and returns how many
+/// are done. After the last, the PNG is finished and moved into place.
+#[tauri::command]
+async fn png_export_rows(export: u32, rows: i32, library: State<'_, Shared>) -> Result<i32, String> {
+    let library = library.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut guard = library.lock().map_err(|e| e.to_string())?;
+        let library = &mut *guard;
+        let job = library.exports.get_mut(&export).ok_or("That export isn't running")?;
+        let written = match library.documents.get_mut(&job.document) {
+            Some(document) => job.export.write_rows(document, rows),
+            None => Err("The art was closed".to_string()),
+        };
+        let done = match written {
+            Ok(done) => done,
+            Err(e) => {
+                cancel_job(library.exports.remove(&export));
+                return Err(e);
+            }
+        };
+        if library.exports.get(&export).is_some_and(|job| job.export.is_done()) {
+            let job = library.exports.remove(&export).expect("checked above");
+            let (file, temp, target) = (job.file, job.temp, job.target);
+            let finished = job
+                .export
+                .finish()
+                .and_then(|()| file.sync_all().map_err(|e| e.to_string()))
+                .and_then(|()| std::fs::rename(&temp, &target).map_err(|e| e.to_string()));
+            if let Err(e) = finished {
+                let _ = std::fs::remove_file(&temp);
+                return Err(e);
+            }
+        }
+        Ok(done)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Stops a PNG export and removes its temporary file.
+#[tauri::command]
+fn cancel_png_export(export: u32, library: State<'_, Shared>) {
+    if let Ok(mut library) = library.lock() {
+        cancel_job(library.exports.remove(&export));
+    }
+}
+
+fn cancel_job(job: Option<PngJob>) {
+    if let Some(job) = job {
+        let temp = job.temp;
+        drop(job.export);
+        drop(job.file);
+        let _ = std::fs::remove_file(temp);
+    }
+}
+
 /// Fonts a text file can be shown in (Amiga ASCII).
 #[tauri::command]
 fn text_fonts() -> &'static [&'static str] {
@@ -557,6 +671,10 @@ pub fn run() {
             save_formats,
             save_losses,
             save_art,
+            png_size,
+            begin_png_export,
+            png_export_rows,
+            cancel_png_export,
             text_fonts,
             set_text_font,
             image_extensions,

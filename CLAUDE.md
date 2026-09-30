@@ -33,8 +33,9 @@ Half-block, Type, Select, Fill, Pick) with selection (cut, copy, paste,
 move, flip, fill, clear), and the menu bar over one command registry, mirrored in the macOS menu
 bar (`src-tauri/src/native_menu.rs`, `src/lib/nativeMenu.ts`), and
 recent files and crash-recovery autosave (`src-tauri/src/files.rs`,
-`stylus-core/src/recovery.rs`). Next: PNG export, the contrast lint, and
-measuring the IPC hot path on the M1.
+`stylus-core/src/recovery.rs`), and PNG export
+(`stylus-core/src/export.rs`). Next: the contrast lint, and measuring
+the IPC hot path on the M1.
 
 **Viewer history, still true:** checked against libansilove on Sixteen
 Colors packs (`scripts/compare-ansilove.sh`, corpus in the scratch
@@ -104,6 +105,8 @@ draws at 16 px; Stylus is right.
     `Clip` / `SelectionOp` (copy, paste, move, flip with mirrored
     characters, fill, clear). Every edit goes through `Document::commit`
     in `edit.rs`.
+  - `src/export.rs`: PNG export, `PngExport` fed a band of rows at a
+    time (8/9-px, aspect stretch by integer area weights).
   - `src/recovery.rs`: the autosave snapshot, lossless (IcyDraw plus the
     file's own SAUCE record, format name and render settings), reopened
     as unsaved changes.

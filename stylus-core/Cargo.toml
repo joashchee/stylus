@@ -23,10 +23,8 @@ serde = { version = "1", features = ["derive"] }
 # Decoding images for Image to ANSI (MIT OR Apache-2.0). Already in the
 # tree through icy_engine, same version and features.
 image = "0.25"
-
-# Only for the examples (scripts/compare-ansilove.sh): PNG in and out
-# (MIT OR Apache-2.0).
-[dev-dependencies]
+# PNG export (MIT OR Apache-2.0), streamed a band of rows at a time.
+# Already in the tree through image and icy_engine.
 png = "0.18"
 
 # The image converters do a lot of arithmetic per cell; unoptimized, their
