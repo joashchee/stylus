@@ -121,8 +121,19 @@ ID-signed, notarized, the in-development warning on).
   **Decided: the desktop editor stays on IPC**; WASM comes with the web
   app (Phase 4a). Measure again if a heavier path (a big selection move,
   a shape across a 160-column canvas) feels slow.
-- [ ] **The model carries layers and frames from day one,** even though
+- [x] **The model carries layers and frames from day one,** even though
   their UI comes in Phase 3, so no later file format change is needed.
+  **Done 2026-09-30** (`stylus-core/src/frames.rs`): frames × layers, as
+  in a sprite editor. The layers (names, order, visibility) are the same
+  in every frame and each frame has its own cells; the frame shown lives
+  in icy_engine's buffer, so drawing, rendering, export and the contrast
+  check see just that frame. Frame and layer changes (and resize) are
+  one undo step each; the iCE switch covers every frame. Saving writes
+  the frame shown with its layers merged, and the save warning says so.
+  The recovery snapshot (version 2) keeps every frame as an IcyDraw file
+  with its hold time. icy_engine's `set_char` skips hidden and locked
+  layers, so the model's own writes go past it, and drawing on such a
+  layer is refused. No UI yet: the Layers tab and timeline are Phase 3.
 
 ### 1c. The editor (build step 3)
 

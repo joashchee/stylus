@@ -33,7 +33,7 @@ Half-block, Type, Select, Fill, Pick) with selection (cut, copy, paste,
 move, flip, fill, clear), and the menu bar over one command registry, mirrored in the macOS menu
 bar (`src-tauri/src/native_menu.rs`, `src/lib/nativeMenu.ts`), and
 recent files and crash-recovery autosave (`src-tauri/src/files.rs`,
-`stylus-core/src/recovery.rs`), PNG export
+`stylus-core/src/recovery.rs`), frames and layers in the model (`stylus-core/src/frames.rs`, no UI until Phase 3), PNG export
 (`stylus-core/src/export.rs`), the contrast lint
 (`stylus-core/src/contrast.rs`, the Problems tab), and the View menu's
 Fit Window, Grid, Preview and Describe Cell. The M1 hot-path
@@ -110,6 +110,12 @@ draws at 16 px; Stylus is right.
     `Clip` / `SelectionOp` (copy, paste, move, flip with mirrored
     characters, fill, clear). Every edit goes through `Document::commit`
     in `edit.rs`.
+  - `src/frames.rs`: frames × layers (roadmap 1b). The shown frame's
+    layers are `buffer.layers`, the rest wait in `Document::frames`;
+    layers are shared across frames. Structural changes (frames, layers,
+    resize) are one `Step::Structure`. Write cells with `frames::put`
+    for the model's own changes: icy_engine's `set_char` skips hidden and
+    locked layers.
   - `src/export.rs`: PNG export, `PngExport` fed a band of rows at a
     time (8/9-px, aspect stretch by integer area weights).
   - `src/contrast.rs`: the contrast checker

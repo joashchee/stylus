@@ -294,7 +294,7 @@ impl Document {
     }
 
     fn char_at(&self, x: i32, y: i32) -> AttributedChar {
-        self.buffer.layers[self.buffer.layers.len() - 1].char_at((x, y).into())
+        self.buffer.layers[self.layer].char_at((x, y).into())
     }
 
     /// Draws `shape` as stroke `stroke`, replacing what the same stroke drew

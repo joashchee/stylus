@@ -8,11 +8,12 @@
 //! a determinate progress bar (rows rendered) and never hold one giant image.
 
 use icy_engine::formats::FileFormat;
-use icy_engine::{AttributeColor, BufferType, IceMode, Rectangle, RenderOptions, TextBuffer, TextPane};
+use icy_engine::{AttributeColor, BufferType, IceMode, Layer, Rectangle, RenderOptions, TextBuffer, TextPane};
 use icy_sauce::SauceRecord;
 use std::collections::HashSet;
 
 use crate::edit::History;
+use crate::frames::{Frame, DEFAULT_HOLD_MS};
 use serde::{Deserialize, Serialize};
 
 use crate::sauce::SauceInfo;
@@ -54,6 +55,13 @@ pub struct DocumentInfo {
     pub can_redo: bool,
     /// Changed since it was opened or last saved.
     pub edited: bool,
+    /// Frames (1 for still art) and the one shown, from 0.
+    pub frames: usize,
+    pub frame: usize,
+    /// Layers (the same in every frame) and the one edits go to, from 0
+    /// at the bottom.
+    pub layers: usize,
+    pub layer: usize,
 }
 
 /// One band of rendered rows, RGBA, `width * height * 4` bytes.
@@ -78,9 +86,18 @@ pub struct Document {
     /// iCE as currently shown.
     pub(crate) ice: bool,
     /// Cells changed to show the other iCE setting than the loaded one,
-    /// as (layer, x, y), so switching back restores exactly those. An
-    /// edited cell leaves the set.
-    pub(crate) switched: HashSet<(usize, i32, i32)>,
+    /// as (frame, layer, x, y), so switching back restores exactly those.
+    /// An edited cell leaves the set.
+    pub(crate) switched: HashSet<(usize, usize, i32, i32)>,
+    /// Every frame, in order (docs/roadmap.md 1b: the model carries frames
+    /// before the timeline exists). The shown frame's layers are in
+    /// `buffer.layers` and its entry here has none, so drawing, rendering,
+    /// export and the contrast check all see just the frame on screen.
+    pub(crate) frames: Vec<Frame>,
+    /// The frame shown.
+    pub(crate) frame: usize,
+    /// The layer edits go to, in every frame.
+    pub(crate) layer: usize,
     pub(crate) history: History,
 }
 
@@ -110,7 +127,7 @@ impl Document {
                         if ch.ch as u32 > 0x7f {
                             if let Some(cp437) = BufferType::CP437.try_convert_from_unicode(ch.ch) {
                                 ch.ch = cp437;
-                                layer.set_char((x, y), ch);
+                                crate::frames::put(layer, x, y, ch);
                             }
                         }
                     }
@@ -131,8 +148,13 @@ impl Document {
     }
 
     pub(crate) fn from_buffer(buffer: TextBuffer, sauce: Option<SauceRecord>, format: &str, rows: i32, ice: bool) -> Self {
+        // Opened art is edited on its top layer.
+        let layer = buffer.layers.len().saturating_sub(1);
         Document {
             buffer,
+            frames: vec![Frame { layers: Vec::new(), hold_ms: DEFAULT_HOLD_MS }],
+            frame: 0,
+            layer,
             sauce,
             format: format.to_string(),
             rows,
@@ -185,10 +207,10 @@ impl Document {
     /// exactly those cells, so a file mixing real bright backgrounds with
     /// blink comes back unchanged. RGB and 256-color backgrounds have no such
     /// bit and are left alone.
-    fn switch_ice_colors(&mut self, ice: bool) {
+    pub(crate) fn switch_ice_colors(&mut self, ice: bool) {
         if ice == self.loaded_ice {
-            for (l, x, y) in std::mem::take(&mut self.switched) {
-                let layer = &mut self.buffer.layers[l];
+            for (f, l, x, y) in std::mem::take(&mut self.switched) {
+                let layer = &mut self.frame_layers_mut(f)[l];
                 let mut ch = layer.char_at((x, y).into());
                 if let AttributeColor::Palette(bg) = ch.attribute.background_color() {
                     if ice {
@@ -198,34 +220,55 @@ impl Document {
                         ch.attribute.set_is_blinking(true);
                         ch.attribute.set_background_color(AttributeColor::Palette(bg - 8));
                     }
-                    layer.set_char((x, y), ch);
+                    crate::frames::put(layer, x, y, ch);
                 }
             }
         } else {
-            for (l, layer) in self.buffer.layers.iter_mut().enumerate() {
-                for y in 0..layer.height() {
-                    for x in 0..layer.width() {
-                        let mut ch = layer.char_at((x, y).into());
-                        let AttributeColor::Palette(bg) = ch.attribute.background_color() else {
-                            continue;
-                        };
-                        if ice && bg < 8 && ch.attribute.is_blinking() {
-                            ch.attribute.set_is_blinking(false);
-                            ch.attribute.set_background_color(AttributeColor::Palette(bg + 8));
-                        } else if !ice && (8..16).contains(&bg) {
-                            ch.attribute.set_is_blinking(true);
-                            ch.attribute.set_background_color(AttributeColor::Palette(bg - 8));
-                        } else {
-                            continue;
+            let mut switched = HashSet::new();
+            for f in 0..self.frames.len() {
+                for (l, layer) in self.frame_layers_mut(f).iter_mut().enumerate() {
+                    for y in 0..layer.height() {
+                        for x in 0..layer.width() {
+                            let mut ch = layer.char_at((x, y).into());
+                            let AttributeColor::Palette(bg) = ch.attribute.background_color() else {
+                                continue;
+                            };
+                            if ice && bg < 8 && ch.attribute.is_blinking() {
+                                ch.attribute.set_is_blinking(false);
+                                ch.attribute.set_background_color(AttributeColor::Palette(bg + 8));
+                            } else if !ice && (8..16).contains(&bg) {
+                                ch.attribute.set_is_blinking(true);
+                                ch.attribute.set_background_color(AttributeColor::Palette(bg - 8));
+                            } else {
+                                continue;
+                            }
+                            crate::frames::put(layer, x, y, ch);
+                            switched.insert((f, l, x, y));
                         }
-                        layer.set_char((x, y), ch);
-                        self.switched.insert((l, x, y));
                     }
                 }
             }
+            self.switched = switched;
         }
         self.ice = ice;
         self.buffer.ice_mode = if ice { IceMode::Ice } else { IceMode::Blink };
+    }
+
+    /// Frame `frame`'s layers, wherever they are kept.
+    pub(crate) fn frame_layers(&self, frame: usize) -> &Vec<Layer> {
+        if frame == self.frame {
+            &self.buffer.layers
+        } else {
+            &self.frames[frame].layers
+        }
+    }
+
+    pub(crate) fn frame_layers_mut(&mut self, frame: usize) -> &mut Vec<Layer> {
+        if frame == self.frame {
+            &mut self.buffer.layers
+        } else {
+            &mut self.frames[frame].layers
+        }
     }
 
     pub(crate) fn has_blink(&self) -> bool {
@@ -263,6 +306,10 @@ impl Document {
             can_undo: self.can_undo(),
             can_redo: self.can_redo(),
             edited: self.is_edited(),
+            frames: self.frames.len(),
+            frame: self.frame,
+            layers: self.buffer.layers.len(),
+            layer: self.layer,
         }
     }
 

@@ -8,11 +8,13 @@ pub mod convert;
 mod document;
 mod edit;
 mod export;
+mod frames;
 mod recovery;
 mod sauce;
 mod tools;
 
 pub use document::{Band, Document, DocumentInfo, RenderSettings};
+pub use frames::{DEFAULT_HOLD_MS, MAX_FRAMES, MAX_HOLD_MS, MAX_LAYERS, MIN_HOLD_MS};
 pub use export::{PngExport, PngOptions, PngSize};
 pub use edit::{CellEdit, CellInfo, CellRect, SaveFormat, SaveLoss, SauceFields, MAX_COLUMNS, MAX_ROWS, SAVE_FORMATS, TEXT_FONTS};
 pub use sauce::{decode_cp437, SauceInfo};

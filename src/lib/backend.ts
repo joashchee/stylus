@@ -72,6 +72,12 @@ export interface DocumentInfo {
   canRedo: boolean;
   /** Changed since it was opened or last saved. */
   edited: boolean;
+  /** Frames (1 for still art) and the one shown, from 0. */
+  frames: number;
+  frame: number;
+  /** Layers (the same in every frame) and the one edits go to, from 0 at the bottom. */
+  layers: number;
+  layer: number;
 }
 
 export interface OpenedArt {

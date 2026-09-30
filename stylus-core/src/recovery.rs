@@ -10,20 +10,27 @@
 //! carries those beside the art:
 //!
 //! ```text
-//! "STYLUS-RECOVERY1"            magic, 16 bytes
+//! "STYLUS-RECOVERY2"            magic, 16 bytes
 //! settings                      u8: bit 0 9-px, bit 1 iCE, bit 2 aspect
 //! format name                   u16 LE length, UTF-8
 //! SAUCE record                  u32 LE length (0 for none), as written
-//! the art                       IcyDraw bytes, to the end
+//! frames, frame shown, layer    u16 LE each
+//! each frame                    u32 LE hold (ms), u32 LE length, IcyDraw bytes
 //! ```
+//!
+//! IcyDraw holds one picture, so each frame is one IcyDraw file, with every
+//! layer. Version 1 (before frames) had no frame fields and one IcyDraw
+//! file to the end; it still opens.
 
 use icy_engine::formats::{FileFormat, FormatOptions, IcyDrawFormatOptions, SaveOptions};
 use icy_engine::TextPane;
 use icy_sauce::SauceRecord;
 
 use crate::document::{Document, RenderSettings};
+use crate::frames::{Frame, DEFAULT_HOLD_MS};
 
-const MAGIC: &[u8; 16] = b"STYLUS-RECOVERY1";
+const MAGIC: &[u8; 16] = b"STYLUS-RECOVERY2";
+const MAGIC_V1: &[u8; 16] = b"STYLUS-RECOVERY1";
 
 impl Document {
     /// A number that changes whenever the art does, so an autosave can skip
@@ -49,7 +56,15 @@ impl Document {
         let mut options = SaveOptions::icy_draw();
         // No preview image: an autosave is never shown as a file.
         options.format = FormatOptions::IcyDraw(IcyDrawFormatOptions { skip_thumbnail: true, compress: true });
-        out.extend(FileFormat::IcyDraw.to_bytes(&self.buffer_for_save(), &options).map_err(|e| e.to_string())?);
+        for n in [self.frames.len(), self.frame, self.layer] {
+            out.extend((n as u16).to_le_bytes());
+        }
+        for (f, frame) in self.frames.iter().enumerate() {
+            let art = FileFormat::IcyDraw.to_bytes(&self.buffer_for_frame(f), &options).map_err(|e| e.to_string())?;
+            out.extend(frame.hold_ms.to_le_bytes());
+            out.extend((art.len() as u32).to_le_bytes());
+            out.extend(art);
+        }
         Ok(out)
     }
 
@@ -58,23 +73,69 @@ impl Document {
     /// saved) with no undo history.
     pub fn from_recovery(data: &[u8]) -> Result<Document, String> {
         let bad = || "That isn't a Stylus recovery file".to_string();
-        let rest = data.strip_prefix(MAGIC.as_slice()).ok_or_else(bad)?;
+        let (v1, rest) = match (data.strip_prefix(MAGIC.as_slice()), data.strip_prefix(MAGIC_V1.as_slice())) {
+            (Some(rest), _) => (false, rest),
+            (None, Some(rest)) => (true, rest),
+            (None, None) => return Err(bad()),
+        };
         let (&flags, rest) = rest.split_first().ok_or_else(bad)?;
         let (format, rest) = take(rest, 2).ok_or_else(bad)?;
         let (format, rest) = take(rest, u16::from_le_bytes([format[0], format[1]]) as usize).ok_or_else(bad)?;
         let format = String::from_utf8(format.to_vec()).map_err(|_| bad())?;
         let (sauce_len, rest) = take(rest, 4).ok_or_else(bad)?;
-        let (sauce, art) = take(rest, u32::from_le_bytes(sauce_len.try_into().map_err(|_| bad())?) as usize).ok_or_else(bad)?;
+        let (sauce, rest) = take(rest, u32::from_le_bytes(sauce_len.try_into().map_err(|_| bad())?) as usize).ok_or_else(bad)?;
         let sauce = if sauce.is_empty() { None } else { SauceRecord::from_bytes(sauce).map_err(|e| e.to_string())? };
 
-        let loaded = FileFormat::IcyDraw.from_bytes(art, None).map_err(|e| format!("The recovery file is damaged: {e}"))?;
-        let buffer = loaded.screen.buffer;
-        if buffer.width() <= 0 || buffer.height() <= 0 {
-            return Err("The recovery file is damaged: it has no art in it".to_string());
+        let damaged = |why: &str| format!("The recovery file is damaged: {why}");
+        // Each frame's hold and art.
+        let mut frames: Vec<(u32, &[u8])> = Vec::new();
+        let (count, shown, layer) = if v1 {
+            frames.push((DEFAULT_HOLD_MS, rest));
+            (1, 0, None)
+        } else {
+            let (head, mut rest) = take(rest, 6).ok_or_else(bad)?;
+            let n = |i: usize| u16::from_le_bytes([head[i], head[i + 1]]) as usize;
+            for _ in 0..n(0) {
+                let (hold, more) = take(rest, 4).ok_or_else(bad)?;
+                let (len, more) = take(more, 4).ok_or_else(bad)?;
+                let (art, more) = take(more, u32::from_le_bytes(len.try_into().map_err(|_| bad())?) as usize).ok_or_else(bad)?;
+                frames.push((u32::from_le_bytes(hold.try_into().map_err(|_| bad())?), art));
+                rest = more;
+            }
+            (n(0), n(2), Some(n(4)))
+        };
+        if count == 0 || shown >= count {
+            return Err(damaged("its frames are missing"));
         }
-        let rows = buffer.height();
-        let ice = matches!(buffer.ice_mode, icy_engine::IceMode::Ice);
-        let mut document = Document::from_buffer(buffer, sauce, &format, rows, ice);
+
+        let mut document: Option<Document> = None;
+        for (hold_ms, art) in frames {
+            let loaded = FileFormat::IcyDraw.from_bytes(art, None).map_err(|e| damaged(&e.to_string()))?;
+            let buffer = loaded.screen.buffer;
+            if buffer.width() <= 0 || buffer.height() <= 0 {
+                return Err(damaged("it has no art in it"));
+            }
+            match &mut document {
+                None => {
+                    let rows = buffer.height();
+                    let ice = matches!(buffer.ice_mode, icy_engine::IceMode::Ice);
+                    let mut first = Document::from_buffer(buffer, sauce.clone(), &format, rows, ice);
+                    first.frames[0].hold_ms = hold_ms;
+                    document = Some(first);
+                }
+                Some(doc) => {
+                    if buffer.size() != doc.buffer.size() || buffer.layers.len() != doc.buffer.layers.len() {
+                        return Err(damaged("its frames don't match"));
+                    }
+                    doc.frames.push(Frame { layers: buffer.layers, hold_ms });
+                }
+            }
+        }
+        let mut document = document.ok_or_else(|| damaged("its frames are missing"))?;
+        document.show_frame(shown);
+        if let Some(layer) = layer {
+            document.select_layer(layer).map_err(|_| damaged("its current layer is missing"))?;
+        }
         document.set_settings(RenderSettings { letter_spacing: flags & 1 != 0, ice_colors: flags & 2 != 0, aspect_ratio: flags & 4 != 0 });
         document.history.saved = -1;
         Ok(document)
@@ -150,6 +211,54 @@ mod tests {
         doc.set_text_font("Amiga Topaz 1+").unwrap();
         doc.apply(1, &[edit(0, 0, b'a', 7, 0)]);
         assert_same_art(&doc, &Document::from_recovery(&doc.recovery_snapshot().unwrap()).unwrap());
+    }
+
+    #[test]
+    fn every_frame_and_layer_comes_back() {
+        let mut doc = Document::new_blank(20, 3, true).unwrap();
+        doc.apply(1, &[edit(0, 0, b'a', 15, 1)]);
+        doc.add_layer("Top").unwrap();
+        doc.apply(2, &[edit(1, 0, b'T', 14, 12)]);
+        doc.insert_frame(1, true).unwrap();
+        doc.apply(3, &[edit(2, 0, b'2', 13, 9)]);
+        doc.set_frame_hold(1, 400).unwrap();
+        doc.set_layer_visible(1, false).unwrap();
+        doc.select_layer(0).unwrap();
+        doc.set_settings(RenderSettings { ice_colors: false, ..doc.settings() });
+        let recovered = Document::from_recovery(&doc.recovery_snapshot().unwrap()).unwrap();
+        let (a, b) = (doc.info(), recovered.info());
+        assert_eq!((b.frames, b.frame, b.layers, b.layer), (a.frames, a.frame, a.layers, a.layer));
+        assert_eq!(recovered.frame_hold(1), Some(400));
+        let mut recovered = recovered;
+        for f in 0..2 {
+            doc.select_frame(f).unwrap();
+            recovered.select_frame(f).unwrap();
+            assert_same_art(&doc, &recovered);
+        }
+        // Switching iCE back restores the cells in every frame.
+        doc.set_layer_visible(1, true).unwrap();
+        recovered.set_layer_visible(1, true).unwrap();
+        for d in [&mut doc, &mut recovered] {
+            d.set_settings(RenderSettings { ice_colors: true, ..d.settings() });
+        }
+        assert_same_art(&doc, &recovered);
+    }
+
+    #[test]
+    fn a_version_1_snapshot_still_opens() {
+        let mut doc = Document::new_blank(8, 2, true).unwrap();
+        doc.apply(1, &[edit(0, 0, b'v', 15, 1)]);
+        // Version 1: the same header without the frame fields, then one
+        // IcyDraw file.
+        let v2 = doc.recovery_snapshot().unwrap();
+        let header = 16 + 1 + 2 + 4 + (v2[17] as usize | (v2[18] as usize) << 8);
+        let header = header + u32::from_le_bytes(v2[header - 4..header].try_into().unwrap()) as usize;
+        let mut v1 = b"STYLUS-RECOVERY1".to_vec();
+        v1.extend(&v2[16..header]);
+        v1.extend(&v2[header + 6 + 8..]);
+        let recovered = Document::from_recovery(&v1).unwrap();
+        assert_same_art(&doc, &recovered);
+        assert_eq!(recovered.frame_count(), 1);
     }
 
     #[test]

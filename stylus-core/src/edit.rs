@@ -6,16 +6,17 @@
 //! websockets (its collaboration server) that neither the web build nor
 //! CLAUDE.md rule 1 allows (docs/roadmap.md, Phase 1b).
 //!
-//! Edits go to the top layer. Colors are palette indexes (0–15); with iCE
+//! Edits go to the current layer of the frame shown (`frames.rs`). Colors are palette indexes (0–15); with iCE
 //! off, backgrounds are 0–7, as the format stores them.
 
 use icy_engine::formats::{AnsiCompatibilityLevel, FileFormat, FormatCapabilities, FormatOptions, IssueType, SaveOptions, SauceMetaData};
-use icy_engine::{AttributeColor, AttributedChar, IceMode, Layer, Size, TextAttribute, TextPane};
+use icy_engine::{AttributeColor, AttributedChar, IceMode, Size, TextAttribute, TextPane};
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
 use crate::document::Document;
+use crate::frames::{put, Structure};
 
 /// A rectangle of cells, for what an edit changed (to redraw) and what to render.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -128,9 +129,10 @@ pub(crate) enum Step {
     /// Every cell a stroke changed: position, before, after. A stroke is all
     /// the edits sent with one stroke id (one drag of the pencil, one typed
     /// character), so undo takes the whole stroke back.
-    Cells { stroke: u32, layer: usize, cells: Vec<(i32, i32, AttributedChar, AttributedChar)> },
-    /// A resize, with every layer before and after.
-    Resize { before: (Size, i32, Vec<Layer>), after: (Size, i32, Vec<Layer>) },
+    Cells { stroke: u32, frame: usize, layer: usize, cells: Vec<(i32, i32, AttributedChar, AttributedChar)> },
+    /// A resize or a change to the frames or layers, with every frame
+    /// before and after.
+    Structure { before: Box<Structure>, after: Box<Structure> },
 }
 
 /// Undo and redo, each step with the revision it made. The document's
@@ -171,10 +173,6 @@ impl Document {
         }
         buffer.ice_mode = if ice_colors { IceMode::Ice } else { IceMode::Blink };
         Ok(Document::from_buffer(buffer, None, "ANSI", rows, ice_colors))
-    }
-
-    fn edit_layer(&self) -> usize {
-        self.buffer.layers.len().saturating_sub(1)
     }
 
     pub fn can_undo(&self) -> bool {
@@ -245,7 +243,13 @@ impl Document {
     /// makes of the cell as it is (so a later change to the same cell sees
     /// the earlier one). The one path every edit takes into the undo history.
     pub(crate) fn commit<F: FnOnce(AttributedChar) -> AttributedChar>(&mut self, stroke: u32, cells: impl IntoIterator<Item = (i32, i32, F)>) -> Option<CellRect> {
-        let layer_index = self.edit_layer();
+        let layer_index = self.layer;
+        let frame = self.frame;
+        // Nothing is drawn on a hidden or locked layer.
+        let properties = &self.buffer.layers[layer_index].properties;
+        if !properties.is_visible || properties.is_locked {
+            return None;
+        }
         let columns = self.buffer.width();
         let mut changed: Vec<(i32, i32, AttributedChar, AttributedChar)> = Vec::new();
         let mut index: HashMap<(i32, i32), usize> = HashMap::new();
@@ -262,7 +266,7 @@ impl Document {
             }
             layer.set_char((x, y), after);
             // An edited cell isn't one the iCE switch moved any more.
-            self.switched.remove(&(layer_index, x, y));
+            self.switched.remove(&(frame, layer_index, x, y));
             // A cell changed twice keeps its first "before", so undo
             // restores it whatever order the changes came in.
             match index.get(&(x, y)) {
@@ -281,8 +285,8 @@ impl Document {
         self.buffer.mark_dirty();
         let saved_now = self.history.revision() == self.history.saved;
         match self.history.undo.last_mut() {
-            Some((_, Step::Cells { stroke: s, layer, cells }))
-                if *s == stroke && *layer == layer_index && self.history.redo.is_empty() && !saved_now =>
+            Some((_, Step::Cells { stroke: s, frame: f, layer, cells }))
+                if *s == stroke && *f == frame && *layer == layer_index && self.history.redo.is_empty() && !saved_now =>
             {
                 // Same stroke: keep each cell's first "before".
                 for (x, y, before, after) in changed {
@@ -293,7 +297,7 @@ impl Document {
                     }
                 }
             }
-            _ => self.push_step(Step::Cells { stroke, layer: layer_index, cells: changed }),
+            _ => self.push_step(Step::Cells { stroke, frame, layer: layer_index, cells: changed }),
         }
         dirty
     }
@@ -313,7 +317,7 @@ impl Document {
         Some(self.restore(&step, true))
     }
 
-    fn push_step(&mut self, step: Step) {
+    pub(crate) fn push_step(&mut self, step: Step) {
         self.history.last += 1;
         self.history.undo.push((self.history.last, step));
         self.history.redo.clear();
@@ -328,27 +332,28 @@ impl Document {
         if columns == self.buffer.width() && rows == self.rows {
             return Ok(());
         }
-        let before = (self.buffer.size(), self.rows, self.buffer.layers.clone());
         let blank = AttributedChar::new(' ', TextAttribute::new(7, 0));
         let old_width = self.buffer.width();
         let old_rows = self.rows;
-        self.buffer.set_size((columns, rows));
-        for layer in &mut self.buffer.layers {
-            layer.set_size((columns, rows));
-        }
-        let base = &mut self.buffer.layers[0];
-        for y in 0..rows {
-            for x in 0..columns {
-                if (x >= old_width || y >= old_rows) || !base.char_at((x, y).into()).is_visible() {
-                    base.set_char((x, y), blank);
+        self.change_structure(|doc| {
+            doc.buffer.set_size((columns, rows));
+            for f in 0..doc.frames.len() {
+                let layers = doc.frame_layers_mut(f);
+                for layer in layers.iter_mut() {
+                    layer.set_size((columns, rows));
+                }
+                let base = &mut layers[0];
+                for y in 0..rows {
+                    for x in 0..columns {
+                        if (x >= old_width || y >= old_rows) || !base.char_at((x, y).into()).is_visible() {
+                            put(base, x, y, blank);
+                        }
+                    }
                 }
             }
-        }
-        self.rows = rows;
-        self.switched.retain(|&(_, x, y)| x < columns && y < rows);
-        self.buffer.mark_dirty();
-        let after = (self.buffer.size(), self.rows, self.buffer.layers.clone());
-        self.push_step(Step::Resize { before, after });
+            doc.rows = rows;
+            doc.switched.retain(|&(_, _, x, y)| x < columns && y < rows);
+        });
         Ok(())
     }
 
@@ -371,25 +376,25 @@ impl Document {
     fn restore(&mut self, step: &Step, undo: bool) -> CellRect {
         self.buffer.mark_dirty();
         match step {
-            Step::Cells { layer, cells, .. } => {
+            Step::Cells { frame, layer, cells, .. } => {
+                // A stroke on another frame is undone where it can be seen.
+                let shown = *frame == self.frame;
+                self.show_frame(*frame);
                 let mut rect: Option<CellRect> = None;
                 for &(x, y, before, after) in cells {
                     // Each cell appears once, so the order doesn't matter.
-                    self.buffer.layers[*layer].set_char((x, y), if undo { before } else { after });
-                    self.switched.remove(&(*layer, x, y));
+                    put(&mut self.buffer.layers[*layer], x, y, if undo { before } else { after });
+                    self.switched.remove(&(*frame, *layer, x, y));
                     let cell = CellRect::cell(x, y);
                     rect = Some(rect.map_or(cell, |r| r.union(cell)));
                 }
-                rect.unwrap_or(CellRect::cell(0, 0))
+                if shown {
+                    rect.unwrap_or(CellRect::cell(0, 0))
+                } else {
+                    self.whole()
+                }
             }
-            Step::Resize { before, after } => {
-                let (size, rows, layers) = if undo { before } else { after };
-                self.buffer.set_size(*size);
-                self.buffer.layers = layers.clone();
-                self.rows = *rows;
-                self.switched.retain(|&(_, x, y)| x < size.width && y < *rows);
-                CellRect { x: 0, y: 0, width: size.width, height: *rows }
-            }
+            Step::Structure { before, after } => self.set_structure(if undo { before } else { after }),
         }
     }
 
@@ -444,6 +449,21 @@ impl Document {
         if !format.capabilities().contains(FormatCapabilities::ICE_COLORS) && format != FileFormat::Ascii && self.has_blink() {
             losses.push(SaveLoss { blocking: false, message: "Blinking text stops blinking".to_string() });
         }
+        let layers = &self.buffer.layers;
+        if layers.len() > 1 {
+            let hidden = layers.iter().filter(|l| !l.is_visible()).count();
+            let message = match hidden {
+                0 => format!("The {} layers are merged into one", layers.len()),
+                _ => format!("The {} layers are merged into one, and hidden layers are left out", layers.len()),
+            };
+            losses.push(SaveLoss { blocking: false, message });
+        }
+        if self.frames.len() > 1 {
+            losses.push(SaveLoss {
+                blocking: false,
+                message: format!("{} holds one picture: only frame {} of {} is saved", format.name(), self.frame + 1, self.frames.len()),
+            });
+        }
         Ok(losses)
     }
 
@@ -467,10 +487,9 @@ impl Document {
     }
 
     fn has_color(&self) -> bool {
-        let layer = &self.buffer.layers[self.edit_layer()];
         (0..self.rows).any(|y| {
             (0..self.buffer.width()).any(|x| {
-                let a = layer.char_at((x, y).into()).attribute;
+                let a = self.buffer.char_at((x, y).into()).attribute;
                 !(matches!(a.foreground_color(), AttributeColor::Palette(7)) && matches!(a.background_color(), AttributeColor::Palette(0)))
                     || a.is_blinking()
                     || a.is_bold()
@@ -515,9 +534,18 @@ impl Document {
         Ok(bytes)
     }
 
-    /// The buffer cut to the rows shown (parsed formats pad to a screen).
+    /// The frame shown, cut to the rows shown (parsed formats pad to a
+    /// screen).
     pub(crate) fn buffer_for_save(&self) -> icy_engine::TextBuffer {
+        self.buffer_for_frame(self.frame)
+    }
+
+    /// Frame `frame` as a buffer of its own, cut to the rows shown.
+    pub(crate) fn buffer_for_frame(&self, frame: usize) -> icy_engine::TextBuffer {
         let mut buffer = self.buffer.clone();
+        if frame != self.frame {
+            buffer.layers = self.frame_layers(frame).clone();
+        }
         let size = Size::new(buffer.width(), self.rows);
         buffer.set_size(size);
         for layer in &mut buffer.layers {

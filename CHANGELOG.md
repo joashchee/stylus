@@ -2,6 +2,21 @@
 
 ## 0.3.0 (2026-09-30, unreleased)
 
+- **Frames and layers in the document model** (2026-09-30): every
+  document is now frames × layers in `stylus-core` (`src/frames.rs`),
+  ready for Phase 3's timeline and Layers tab with no model or recovery
+  format change. Frames can be added (a copy or blank), deleted, moved
+  and given a hold time; layers added, deleted, shown and hidden, the
+  same in every frame; each change is one undo step, and undoing a
+  stroke on another frame shows that frame. Resize and the iCE switch
+  cover every frame. Saving writes the frame shown, merged, and the
+  save warning says so when there's more than one frame or layer. The
+  crash-recovery snapshot is now version 2 and keeps every frame and
+  layer (version 1 still opens). Fixed on the way: icy_engine skips
+  writes to hidden or locked layers, so the model writes past that for
+  undo, resize and the iCE switch, and drawing on a hidden or locked
+  layer is refused instead of leaving an empty undo step.
+
 - **View basics** (2026-09-30): View → Fit Window shows the whole piece
   at once, Grid (⌘') draws the cell lines, Preview (⇧⌘P) hides the
   cursor, selection, grid and contrast marks to check a finished piece,
