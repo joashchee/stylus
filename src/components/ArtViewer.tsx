@@ -16,6 +16,8 @@
  * - Editing (ArtEditor): `redraw` re-renders just the cells an edit
  *   changed, and the pointer callbacks report the cell under the pointer,
  *   from the art's displayed size, so zoom and aspect need no maths here.
+ * - Fit Window gives the area its full height (it otherwise shrinks to
+ *   short art) and scales the art to fit both ways.
  */
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { renderBand, renderCells, type CellRect, type DocumentInfo } from "../lib/backend";
@@ -25,7 +27,8 @@ import type { ActivityUpdate } from "../lib/activity";
 const BAND_PX = 2048;
 const BLINK_MS = 500;
 
-export type Zoom = "fit" | 1 | 2 | 3 | 4;
+/** A fixed scale, or fit the art's width (`fit`) or all of it (`window`) to the canvas area. */
+export type Zoom = "fit" | "window" | 1 | 2 | 3 | 4;
 
 type RunActivity = <T>(label: string, task: (update: ActivityUpdate) => Promise<T>, key?: string) => Promise<T>;
 
@@ -82,7 +85,7 @@ export const ArtViewer = forwardRef<ArtViewerHandle, ArtViewerProps>(function Ar
   const generation = useRef(0);
   const areaRef = useRef<HTMLDivElement>(null);
   const stackRef = useRef<HTMLDivElement>(null);
-  const [areaWidth, setAreaWidth] = useState(0);
+  const [area, setArea] = useState({ width: 0, height: 0 });
   const [blinkVisible, setBlinkVisible] = useState(true);
 
   // Render every band, "on" frames first, then the blink "off" frames.
@@ -161,12 +164,14 @@ export const ArtViewer = forwardRef<ArtViewerHandle, ArtViewerProps>(function Ar
   useEffect(() => {
     const el = areaRef.current;
     if (!el) return;
-    const observer = new ResizeObserver(([entry]) => setAreaWidth(entry.contentRect.width));
+    const observer = new ResizeObserver(([entry]) => setArea({ width: entry.contentRect.width, height: entry.contentRect.height }));
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
 
-  const scale = zoom === "fit" ? (areaWidth > 0 ? areaWidth / info.pixelWidth : 1) : zoom;
+  const artHeight = info.rows * info.cellHeight * info.aspectStretch;
+  const fitWidth = area.width > 0 ? area.width / info.pixelWidth : 1;
+  const scale = zoom === "fit" ? fitWidth : zoom === "window" ? (area.height > 0 ? Math.min(fitWidth, area.height / artHeight) : fitWidth) : zoom;
   const displayWidth = info.pixelWidth * scale;
   // Pixelated when enlarging keeps cells crisp; shrinking reads better smoothed.
   const rendering = scale >= 1 ? "pixelated" : "auto";
@@ -181,7 +186,7 @@ export const ArtViewer = forwardRef<ArtViewerHandle, ArtViewerProps>(function Ar
   }
 
   return (
-    <div className="art-area" ref={areaRef} data-testid="art-area">
+    <div className={`art-area${zoom === "window" ? " fit-window" : ""}`} ref={areaRef} data-testid="art-area">
       <div
         ref={stackRef}
         className={`art-stack${pointer ? " editing" : ""}`}
@@ -241,6 +246,18 @@ export function CellBox({ info, rect, className }: { info: DocumentInfo; rect: C
         width: `${(rect.width / info.columns) * 100}%`,
         height: `${(rect.height / info.rows) * 100}%`,
       }}
+    />
+  );
+}
+
+/** Lines between the cells (View → Grid), drawn over the art. */
+export function CellGrid({ info }: { info: DocumentInfo }) {
+  return (
+    <div
+      className="cell-grid"
+      aria-hidden="true"
+      data-testid="cell-grid"
+      style={{ backgroundSize: `${100 / info.columns}% ${100 / info.rows}%` }}
     />
   );
 }

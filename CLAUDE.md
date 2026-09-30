@@ -34,8 +34,9 @@ move, flip, fill, clear), and the menu bar over one command registry, mirrored i
 bar (`src-tauri/src/native_menu.rs`, `src/lib/nativeMenu.ts`), and
 recent files and crash-recovery autosave (`src-tauri/src/files.rs`,
 `stylus-core/src/recovery.rs`), PNG export
-(`stylus-core/src/export.rs`), and the contrast lint
-(`stylus-core/src/contrast.rs`, the Problems tab). The M1 hot-path
+(`stylus-core/src/export.rs`), the contrast lint
+(`stylus-core/src/contrast.rs`, the Problems tab), and the View menu's
+Fit Window, Grid, Preview and Describe Cell. The M1 hot-path
 benchmark decided it: **the desktop editor stays on Tauri IPC** (a fast
 400% drag drawn within 7 ms a move, each IPC call about 1 ms; the core
 about 3 µs). Dev builds keep the timing (`src/lib/hotPath.ts`, Help →

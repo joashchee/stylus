@@ -14,6 +14,11 @@
  * the core at each move (`drawShape`), so its preview is the art itself;
  * moves that arrive while one is drawing collapse into the latest.
  *
+ * The view (View menu): zoom steps, Actual Size, Fit Width and Fit Window,
+ * a grid between the cells, Preview (every overlay hidden, to check the
+ * finished piece), and Describe Cell, which reads the cell at the cursor
+ * to screen readers through a live region.
+ *
  * The contrast lint (View → Check Contrast, on per document) lists text and
  * graphics short of the contrast list's ratios in the Problems tab and
  * marks their cells on the canvas; it's checked again after every edit.
@@ -23,7 +28,7 @@
  * drag at 400% and shows them.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
-import { ArtViewer, CellBox, type ArtViewerHandle, type Cell, type Zoom } from "./ArtViewer";
+import { ArtViewer, CellBox, CellGrid, type ArtViewerHandle, type Cell, type Zoom } from "./ArtViewer";
 import { SaucePanel } from "./SaucePanel";
 import {
   applyEdits,
@@ -174,6 +179,10 @@ export function ArtEditor({ art, onInfo, runActivity, onError, active }: ArtEdit
   const [cursor, setCursor] = useState<Cell>({ x: 0, y: 0 });
   const [hover, setHover] = useState<{ cell: Cell; info: CellInfo | null } | null>(null);
   const [zoom, setZoom] = useState<Zoom>(2);
+  const [grid, setGrid] = useState(false);
+  const [preview, setPreview] = useState(false);
+  /** What Describe Cell last read out, for the live region. */
+  const [described, setDescribed] = useState("");
   const [tab, setTab] = useState<PanelTab>("colors");
   const [filled, setFilled] = useState(false);
   const [double, setDouble] = useState(false);
@@ -626,8 +635,25 @@ export function ArtEditor({ art, onInfo, runActivity, onError, active }: ArtEdit
   }
 
   function zoomBy(step: number) {
-    const now = zoom === "fit" ? (step > 0 ? 1 : 2) : zoom;
+    const now = zoom === "fit" || zoom === "window" ? (step > 0 ? 1 : 2) : zoom;
     setZoom(ZOOMS[Math.min(Math.max(ZOOMS.indexOf(now) + step, 0), ZOOMS.length - 1)]);
+  }
+
+  /** Reads the cell at the cursor out to screen readers. */
+  async function describeCell() {
+    const at = cursor;
+    try {
+      const c = await cellAt(art.id, at.x, at.y);
+      const where = `Column ${at.x + 1}, row ${at.y + 1}`;
+      // The same words twice would not be read again, so a repeat gets a mark.
+      const say = (text: string) => setDescribed((d) => (d === text ? `${text}.` : text));
+      if (!c) return say(`${where}: outside the art`);
+      const char = c.code === 32 || c.code === 0 || c.code === 255 ? "blank" : `“${cp437Char(c.code)}”`;
+      const colors = c.truecolor ? "24-bit colors" : `${COLOR_NAMES[c.fg]} on ${COLOR_NAMES[c.bg]}`;
+      say(`${where}: ${char}, code ${c.code}, ${colors}${c.blink ? ", blinking" : ""}`);
+    } catch (e) {
+      onError(String(e));
+    }
   }
 
   // The menu bar's commands (lib/commands.ts), while this workspace shows.
@@ -657,6 +683,10 @@ export function ArtEditor({ art, onInfo, runActivity, onError, active }: ArtEdit
     "view.zoomOut": { run: () => zoomBy(-1), enabled: zoom !== 1 },
     "view.actualSize": { run: () => setZoom(1), checked: zoom === 1 },
     "view.fit": { run: () => setZoom("fit"), checked: zoom === "fit" },
+    "view.fitWindow": { run: () => setZoom("window"), checked: zoom === "window" },
+    "view.grid": { run: () => setGrid((v) => !v), checked: grid },
+    "view.preview": { run: () => setPreview((v) => !v), checked: preview },
+    "view.describeCell": { run: () => void describeCell() },
     "view.contrastLint": { run: () => setLint(!lint), checked: lint },
   };
   if (HOT_PATH) handlers["help.dev.measureDrawing"] = { run: () => void measureDrawing(), label: "Measure Drawing Speed (dev)" };
@@ -789,6 +819,7 @@ export function ArtEditor({ art, onInfo, runActivity, onError, active }: ArtEdit
 
   const bgCount = info.settings.iceColors ? 16 : 8;
   const flags = [info.format, info.settings.iceColors ? "iCE" : "blink", info.settings.letterSpacing ? "9-px" : "8-px"].join(" · ");
+  const zoomLabel = zoom === "fit" ? "Fit width" : zoom === "window" ? "Fit window" : `${zoom * 100}%`;
 
   return (
     <div className="art-editor" data-testid="art-editor">
@@ -882,18 +913,21 @@ export function ArtEditor({ art, onInfo, runActivity, onError, active }: ArtEdit
             onError={onError}
             pointer={pointer}
             overlay={
-              <>
-                <CellBox info={info} rect={{ x: cursor.x, y: cursor.y, width: 1, height: 1 }} className="text-cursor" />
-                {selection && (
-                  <CellBox
-                    info={info}
-                    rect={moveOffset ? { ...selection, x: selection.x + moveOffset.x, y: selection.y + moveOffset.y } : selection}
-                    className="selection-box"
-                  />
-                )}
-                {lint && failing.length > 0 && <CellMarks info={info} cells={failing} className="contrast-marks" />}
-                {chosen && <CellMarks info={info} cells={chosen.cells} className="contrast-marks chosen" />}
-              </>
+              !preview && (
+                <>
+                  {grid && <CellGrid info={info} />}
+                  <CellBox info={info} rect={{ x: cursor.x, y: cursor.y, width: 1, height: 1 }} className="text-cursor" />
+                  {selection && (
+                    <CellBox
+                      info={info}
+                      rect={moveOffset ? { ...selection, x: selection.x + moveOffset.x, y: selection.y + moveOffset.y } : selection}
+                      className="selection-box"
+                    />
+                  )}
+                  {lint && failing.length > 0 && <CellMarks info={info} cells={failing} className="contrast-marks" />}
+                  {chosen && <CellMarks info={info} cells={chosen.cells} className="contrast-marks chosen" />}
+                </>
+              )
             }
           />
         </div>
@@ -1088,9 +1122,14 @@ export function ArtEditor({ art, onInfo, runActivity, onError, active }: ArtEdit
         <span>
           {info.columns}×{info.rows}
         </span>
+        <span data-testid="status-font">{info.font}</span>
         <span>{flags}</span>
-        <span>{zoom === "fit" ? "Fit" : `${zoom * 100}%`}</span>
+        {preview && <span data-testid="status-preview">Preview</span>}
+        <span>{zoomLabel}</span>
         {info.edited && <span data-testid="status-edited">Edited</span>}
+      </div>
+      <div className="visually-hidden" role="status" aria-live="polite" data-testid="described-cell">
+        {described}
       </div>
     </div>
   );

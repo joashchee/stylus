@@ -139,6 +139,11 @@ export const MENUS: MenuDef[] = [
       { id: "view.zoomOut", label: "Zoom Out", shortcut: "mod+-" },
       { id: "view.actualSize", label: "Actual Size", shortcut: "mod+0" },
       { id: "view.fit", label: "Fit Width" },
+      { id: "view.fitWindow", label: "Fit Window" },
+      "-",
+      { id: "view.grid", label: "Grid", shortcut: "mod+'" },
+      { id: "view.preview", label: "Preview", shortcut: "mod+shift+p" },
+      { id: "view.describeCell", label: "Describe Cell", shortcut: "mod+shift+d" },
       "-",
       { id: "view.letterSpacing", label: "9-px Spacing" },
       { id: "view.aspect", label: "Aspect Ratio" },
@@ -237,7 +242,7 @@ export function shortcutLabel(shortcut: string): string {
 export function shortcutOf(e: KeyboardEvent): string {
   // Letters and digits by position, since Option changes e.key on the Mac.
   const code = /^Key([A-Z])$/.exec(e.code)?.[1] ?? /^Digit(\d)$/.exec(e.code)?.[1];
-  const byCode: Record<string, string> = { Equal: "=", Minus: "-", Slash: "/" };
+  const byCode: Record<string, string> = { Equal: "=", Minus: "-", Slash: "/", Quote: "'" };
   let key = (code ?? byCode[e.code] ?? e.key).toLowerCase();
   if (key === "+") key = "=";
   const mod = IS_MAC ? e.metaKey : e.ctrlKey;

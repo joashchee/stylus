@@ -398,6 +398,16 @@ select {
 .art-editor-canvas { min-width: 0; outline: none; }
 .art-editor-canvas:focus-visible .art-area { outline: 2px solid var(--accent-dim); outline-offset: 1px; }
 .art-editor-canvas .art-area { max-height: calc(100vh - 260px); }
+/* Fit Window: the area keeps its full height, so the art can be scaled to it. */
+.art-area.fit-window { height: calc(100vh - 200px); overflow: hidden; }
+.art-editor-canvas .art-area.fit-window { height: calc(100vh - 260px); }
+/* View → Grid: a line at each cell's top and left edge, mid-gray so it shows on dark and light art. */
+.cell-grid {
+  position: absolute; inset: 0; pointer-events: none;
+  background-image: linear-gradient(to right, rgba(128, 128, 128, 0.55) 1px, transparent 1px), linear-gradient(to bottom, rgba(128, 128, 128, 0.55) 1px, transparent 1px);
+}
+/* Read by screen readers, not shown. */
+.visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .art-stack { position: relative; }
 .art-stack.editing { touch-action: none; }
 .tool-type .art-stack.editing { cursor: text; }

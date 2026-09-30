@@ -78,8 +78,11 @@ ID-signed, notarized, the in-development warning on).
   still wins. **Done 2026-09-30.** Also found and fixed: UTF-8 text
   files showed ▀ ▄ █ as blanks (read as Unicode, drawn by a CP437 font);
   they're now shown as their CP437 codes.
-- [ ] Viewer basics from the surveys not yet in: fit-to-window,
-  actual-size, a status bar (size in cells, font, SAUCE flags).
+- [x] Viewer basics from the surveys not yet in: fit-to-window,
+  actual-size, a status bar (size in cells, font, SAUCE flags). **Done
+  2026-09-30:** View → Actual Size (⌘0), Fit Width and Fit Window (the
+  whole piece, no scrolling); the status bar has the size, font, format,
+  iCE and 9-px flags and zoom.
 
 ### 1b. The decisions that start the editor
 
@@ -155,8 +158,15 @@ ID-signed, notarized, the in-development warning on).
   (▌▐, ▀▄, box corners, brackets) in the PC fonts. Copying to the
   system clipboard as text is left for the paste-text item above.
 - [x] **Undo/redo**, unlimited within the session.
-- [ ] **Viewport:** zoom, grid, cursor and cell coordinates in the
-  status bar, current character and attribute.
+- [x] **Viewport:** zoom, grid, cursor and cell coordinates in the
+  status bar, current character and attribute. **Done 2026-09-30:**
+  zoom 100–400% and the fits, View → Grid (⌘', lines between the cells,
+  mid-gray so they show on any art), View → Preview (⇧⌘P, every overlay
+  hidden, as `docs/ui-design.md` asks), the cursor, the cell under the
+  pointer with its character and colors, the current character and
+  colors in the status bar, and View → Describe Cell (⇧⌘D), which reads
+  the cell at the cursor to screen readers through a live region.
+  The status bar's 24-bit flag waits for 24-bit drawing (Color, above).
 - [ ] **The editor's window** (`docs/ui-design.md`): menu bar (plus the
   macOS native one), Art and Make workspaces in place of the Viewer
   tab, document tabs, tool rail, the F-key strip, the context panel

@@ -2,6 +2,12 @@
 
 ## 0.3.0 (2026-09-30, unreleased)
 
+- **View basics** (2026-09-30): View → Fit Window shows the whole piece
+  at once, Grid (⌘') draws the cell lines, Preview (⇧⌘P) hides the
+  cursor, selection, grid and contrast marks to check a finished piece,
+  and Describe Cell (⇧⌘D) reads the cell at the cursor to screen
+  readers. The status bar names the font.
+
 - **Measuring the editor's hot path** (2026-09-30): `stylus-core`'s
   `stroke_bench` example times a fast pencil drag in the core alone
   (about 3 µs a move on the M1). Dev builds time each pencil move from
