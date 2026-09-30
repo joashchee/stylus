@@ -726,9 +726,7 @@ mod tests {
         for ice in [true, false] {
             let doc = sample(ice);
             let expected = doc.render_rows(0, 8, true).rgba;
-            // TundraDraw: black text before the first color change comes back
-            // light gray (icy_engine bug, docs/upstream/icy_engine-tundra-initial-color.md).
-            for format in SAVE_FORMATS.iter().filter(|f| f.extension != "asc" && f.extension != "tnd") {
+            for format in SAVE_FORMATS.iter().filter(|f| f.extension != "asc") {
                 let losses = doc.save_losses(format.extension).unwrap();
                 assert!(losses.iter().all(|l| !l.blocking), "{}: {losses:?}", format.extension);
                 let bytes = doc.save(format.extension, &sauce()).unwrap();
@@ -810,11 +808,10 @@ mod tests {
         assert!(doc.set_text_font("Comic Sans").is_err());
     }
 
-    /// Fails until the icy_engine fix in
-    /// docs/upstream/icy_engine-tundra-initial-color.md is in the pinned
-    /// revision; then drop the `tnd` exclusion above and this test.
+    /// icy_tools#188 (fixed upstream as `da0d287`): TundraDraw's writer
+    /// started from the wrong attribute, so black text before the first
+    /// color change came back light gray.
     #[test]
-    #[ignore = "icy_engine TundraDraw writer bug, icy_tools#188"]
     fn tundra_draw_keeps_black_text_at_the_start() {
         let mut doc = Document::new_blank(80, 1, true).unwrap();
         doc.apply(1, &[edit(0, 0, b'A', 0, 1)]);

@@ -17,7 +17,7 @@ pub use tools::{line_points, rect_between, Clip, Pen, Point, SelectionOp, Shape}
 use serde::Serialize;
 
 /// The icy_tools git revision in Cargo.toml. Keep the two in step.
-pub const ICY_TOOLS_REV: &str = "2e4e2b1b03ba7f2beb7954585de3de99c541dea6";
+pub const ICY_TOOLS_REV: &str = "da0d287fca7cc4028ba3c029d12be2ea1675bf9a";
 
 /// File extensions the viewer opens (build step 2's v1 formats, plus what
 /// icy_engine loads besides). Lower case, without the dot. The file dialog

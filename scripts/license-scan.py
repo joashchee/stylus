@@ -29,7 +29,7 @@ COPYLEFT = re.compile(r"\b(A?GPL|LGPL|EUPL|OSL|CDDL|CC-BY-SA|SSPL)", re.I)
 # app. Listed in the counts, not failed. Modifying an MPL file would mean
 # publishing that file's changes.
 
-# name -> why it's allowed (checked 2026-09-30 at icy_tools 2e4e2b1).
+# name -> why it's allowed (checked 2026-09-30 at icy_tools da0d287).
 REVIEWED = {
     "icy_engine": "icy_tools, no license field in its Cargo.toml; the repo is MIT OR Apache-2.0 (LICENSE-MIT, LICENSE-APACHE)",
     "icy_sauce": "license-file is Apache-2.0 (github.com/mkrueger/icy_sauce)",

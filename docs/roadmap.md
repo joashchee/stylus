@@ -170,9 +170,9 @@ ID-signed, notarized, the in-development warning on).
   and moved over it. **Left:** recent files, autosave.
 - [x] **Save formats:** `.ANS`, `.ASC`, `.XB` (with its font and
   palette), `.BIN`, `.ADF`, `.IDF`, `.TND`, all through icy_engine.
-  **Done 2026-09-30.** `.TND` loses black text before its first color
-  change until icy_engine's writer is fixed
-  (icy_tools#188, `docs/upstream/icy_engine-tundra-initial-color.md`).
+  **Done 2026-09-30.** `.TND` lost black text before its first color
+  change until icy_engine's writer was fixed (icy_tools#188, fixed
+  upstream as `da0d287`, pinned 2026-09-30).
 - [x] **A save warns before it loses anything** (24-bit into `.BIN`, a
   custom font into `.ANS`, iCE into a format without it): a plain list,
   and the choice to go on. Phase 4 grows this into the full capability

@@ -15,9 +15,6 @@
 # Expected, not bugs:
 # - A binary file (XB, BIN…) with blank rows at the bottom saved as ANSI
 #   reopens shorter: ANSI ends at its last row with content.
-# - .TND is skipped by the unit tests until icy_engine's TundraDraw writer
-#   is fixed (icy_tools#188, docs/upstream/icy_engine-tundra-initial-color.md): black text
-#   before the first color change comes back light gray.
 set -eu
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)

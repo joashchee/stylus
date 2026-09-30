@@ -96,6 +96,11 @@
     `docs/image-to-ansi-converters.md`.
   - About lists every converter's and ported library's license in full.
 
+- **icy_tools upgraded to `da0d287`** (2026-09-30), the TundraDraw fix
+  from icy_tools#188: black text before a TundraDraw file's first color
+  change no longer comes back light gray, so `.TND` saves are exact and
+  back in the round-trip tests. The only other change since `2e4e2b1` is
+  in Icy Term. License scan and the WebAssembly build rechecked.
 - **icy_tools upgraded to `2e4e2b1`** (2026-09-30), which has #187 as
   merged: DEL shows as ⌂ and 24-bit backgrounds stay put under iCE.
   BEL stays a control code, as icy_engine's maintainer chose, so files

@@ -182,7 +182,7 @@ draws at 16 px; Stylus is right.
 ## Open before step 2
 
 - **WASM check (the gate): passes since icy_tools `2e4e2b1`, checked
-  2026-09-30** (`cargo check --target wasm32-unknown-unknown` in
+  2026-09-30, rechecked at the current pin `da0d287`** (`cargo check --target wasm32-unknown-unknown` in
   `stylus-core/`, default features). Our icy_tools#186 proposed `net` and
   `archives` feature flags; the maintainer closed it and removed the
   blockers upstream instead, preferring Rust-only fixes over flags:

@@ -1,6 +1,12 @@
 # Upstream fix: icy_engine TundraDraw writer's starting color
 
-**Status:** opened 2026-09-30 as
+**Status: fixed upstream as `da0d287` (2026-09-30), and Stylus pins
+it.** The maintainer landed the fix himself ("Start the TundraDraw writer
+from the loader's default attribute (#188)") and closed the PR. Stylus's
+TundraDraw test now runs, and `.tnd` is back in the every-format round
+trip. The rest of this file is the original write-up, kept as a record.
+
+Opened 2026-09-30 as
 [mkrueger/icy_tools#188](https://github.com/mkrueger/icy_tools/pull/188),
 from `joashchee/icy_tools` branch `tundra-initial-color` (commit
 `1e46f46`, on upstream `2e5b2cf`, where the bug is still present). The

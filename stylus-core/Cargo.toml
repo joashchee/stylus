@@ -15,7 +15,7 @@ publish = false
 # app suite's internals without semver promises, so pinned to one git
 # revision and upgraded deliberately. Keep ICY_TOOLS_REV in src/lib.rs in
 # step with this.
-icy_engine = { git = "https://github.com/mkrueger/icy_tools", rev = "2e4e2b1b03ba7f2beb7954585de3de99c541dea6" }
+icy_engine = { git = "https://github.com/mkrueger/icy_tools", rev = "da0d287fca7cc4028ba3c029d12be2ea1675bf9a" }
 # SAUCE records (Apache-2.0). Same git spec as icy_tools' workspace, so it's
 # the same crate icy_engine returns; Cargo.lock pins the commit.
 icy_sauce = { git = "https://github.com/mkrueger/icy_sauce" }
