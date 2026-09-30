@@ -17,6 +17,10 @@
  * The contrast lint (View → Check Contrast, on per document) lists text and
  * graphics short of the contrast list's ratios in the Problems tab and
  * marks their cells on the canvas; it's checked again after every edit.
+ *
+ * Dev builds time the pencil's hot path (lib/hotPath.ts): each stroke's
+ * numbers go to the console, and Help → Measure Drawing Speed runs a fast
+ * drag at 400% and shows them.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { ArtViewer, CellBox, type ArtViewerHandle, type Cell, type Zoom } from "./ArtViewer";
@@ -48,6 +52,8 @@ import {
 import { cp437Char, cp437Code, CP437, FKEY_SETS } from "../lib/cp437";
 import type { ActivityUpdate } from "../lib/activity";
 import { useCommands, type Handlers } from "../lib/commands";
+import { HOT_PATH, hotPathLines, hotPathReport, moveQueued, resetHotPath } from "../lib/hotPath";
+import { Dialog } from "./Dialog";
 
 type RunActivity = <T>(label: string, task: (update: ActivityUpdate) => Promise<T>, key?: string) => Promise<T>;
 
@@ -183,6 +189,8 @@ export function ArtEditor({ art, onInfo, runActivity, onError, active }: ArtEdit
   const [chosenProblem, setChosenProblem] = useState<string | null>(null);
   /** Counts changes to the art, so the lint runs again after each. */
   const [revision, setRevision] = useState(0);
+  /** The hot-path numbers from Measure Drawing Speed (dev builds). */
+  const [measured, setMeasured] = useState<string[] | null>(null);
 
   // A new document starts at the top left.
   useEffect(() => {
@@ -393,6 +401,57 @@ export function ArtEditor({ art, onInfo, runActivity, onError, active }: ArtEdit
     }
   }
 
+  /** Paints one move of the pencil or eraser; `at` is its pointer event's time, for the hot-path timing. */
+  function paintMove(edits: CellEdit[], at: number) {
+    const drawn = moveQueued(at);
+    void edit(edits, stroke.current).then(drawn);
+  }
+
+  /** Resolves once every queued edit is drawn and its move timed. */
+  const drawingDone = () => enqueue(async () => undefined).then(() => new Promise((resolve) => setTimeout(resolve, 0)));
+
+  /** Shows the cell under the pointer in the status bar. */
+  function showHover(cell: Cell) {
+    if (hover && hover.cell.x === cell.x && hover.cell.y === cell.y) return;
+    setHover({ cell, info: null });
+    void cellAt(art.id, cell.x, cell.y).then(
+      (c) => setHover((h) => (h && h.cell.x === cell.x && h.cell.y === cell.y ? { cell, info: c } : h)),
+      () => undefined,
+    );
+  }
+
+  /**
+   * A fast pencil drag at 400%, scripted: one cell per display frame (as
+   * WebKit delivers pointer moves) in a zigzag, through the same calls a
+   * real drag makes, then undone. Dev builds only (docs/roadmap.md, 1b).
+   */
+  async function measureDrawing() {
+    const moves = 400;
+    const { columns, rows } = infoRef.current;
+    const nextFrame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+    chooseTool("pencil");
+    setZoom(4);
+    await nextFrame();
+    await nextFrame();
+    resetHotPath();
+    stroke.current += 1;
+    for (let n = 0; n < moves; n++) {
+      // Back and forth along each row, a row further down each pass, in a
+      // new color each move so every move changes its cell.
+      const pass = Math.floor(n / columns);
+      const along = n % columns;
+      const cell = { x: pass % 2 === 0 ? along : columns - 1 - along, y: pass % Math.min(rows, 25) };
+      showHover(cell);
+      paintMove([{ x: cell.x, y: cell.y, code: 0xdb, fg: 1 + (n % 15), bg: 0 }], performance.now());
+      await nextFrame();
+    }
+    await drawingDone();
+    const lines = hotPathLines(hotPathReport());
+    console.info(`Measure Drawing Speed, ${columns}×${rows}:\n${lines.join("\n")}`);
+    setMeasured(lines);
+    await undo();
+  }
+
   /** Every cell on the line from `a` to `b` (Bresenham), so a fast drag leaves no gaps. */
   function lineCells(a: Cell, b: Cell): Cell[] {
     const cells: Cell[] = [];
@@ -600,6 +659,7 @@ export function ArtEditor({ art, onInfo, runActivity, onError, active }: ArtEdit
     "view.fit": { run: () => setZoom("fit"), checked: zoom === "fit" },
     "view.contrastLint": { run: () => setLint(!lint), checked: lint },
   };
+  if (HOT_PATH) handlers["help.dev.measureDrawing"] = { run: () => void measureDrawing(), label: "Measure Drawing Speed (dev)" };
   for (const t of TOOLS) handlers[`tool.${t.id}`] = { run: () => chooseTool(t.id), checked: tool === t.id };
   useCommands("art-editor", active ? handlers : {});
 
@@ -621,7 +681,8 @@ export function ArtEditor({ art, onInfo, runActivity, onError, active }: ArtEdit
           const erase = tool === "eraser" || right;
           drag.current = { kind: "paint", last: cell, erase };
           stroke.current += 1;
-          void edit([paintEdit(cell, erase)], stroke.current);
+          if (HOT_PATH) resetHotPath();
+          paintMove([paintEdit(cell, erase)], e.timeStamp);
           return;
         }
         case "line":
@@ -661,14 +722,8 @@ export function ArtEditor({ art, onInfo, runActivity, onError, active }: ArtEdit
           return;
       }
     },
-    onCellMove(cell: Cell) {
-      if (!hover || hover.cell.x !== cell.x || hover.cell.y !== cell.y) {
-        setHover({ cell, info: null });
-        void cellAt(art.id, cell.x, cell.y).then(
-          (c) => setHover((h) => (h && h.cell.x === cell.x && h.cell.y === cell.y ? { cell, info: c } : h)),
-          () => undefined,
-        );
-      }
+    onCellMove(cell: Cell, e: ReactPointerEvent<HTMLDivElement>) {
+      showHover(cell);
       const d = drag.current;
       if (!d) return;
       switch (d.kind) {
@@ -676,9 +731,9 @@ export function ArtEditor({ art, onInfo, runActivity, onError, active }: ArtEdit
           if (d.last.x === cell.x && d.last.y === cell.y) return;
           const cells = lineCells(d.last, cell).slice(1);
           d.last = cell;
-          void edit(
+          paintMove(
             cells.map((c) => paintEdit(c, d.erase)),
-            stroke.current,
+            e.timeStamp,
           );
           return;
         }
@@ -711,6 +766,9 @@ export function ArtEditor({ art, onInfo, runActivity, onError, active }: ArtEdit
       const d = drag.current;
       drag.current = null;
       if (!d) return;
+      if (HOT_PATH && d.kind === "paint") {
+        void drawingDone().then(() => console.info(`Pencil stroke:\n${hotPathLines(hotPathReport()).join("\n")}`));
+      }
       if (d.kind === "select" && !d.moved) {
         // A click without a drag places the cursor instead.
         deselect();
@@ -986,6 +1044,20 @@ export function ArtEditor({ art, onInfo, runActivity, onError, active }: ArtEdit
           </span>
         </span>
       </div>
+
+      {HOT_PATH && (
+        <Dialog open={!!measured} onClose={() => setMeasured(null)} title="Drawing speed">
+          <p className="desc">
+            A fast pencil drag at 400%, one cell per display frame, then undone. A move that keeps up is drawn within a frame (16.7 ms at 60 Hz,
+            8.3 ms at 120 Hz), and no more than one or two wait at once.
+          </p>
+          <ul data-testid="measured">
+            {measured?.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </Dialog>
+      )}
 
       <div className="status-bar" data-testid="status-bar" aria-live="off">
         <span className="doc-name" data-testid="art-name">

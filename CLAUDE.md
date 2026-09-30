@@ -35,8 +35,11 @@ bar (`src-tauri/src/native_menu.rs`, `src/lib/nativeMenu.ts`), and
 recent files and crash-recovery autosave (`src-tauri/src/files.rs`,
 `stylus-core/src/recovery.rs`), PNG export
 (`stylus-core/src/export.rs`), and the contrast lint
-(`stylus-core/src/contrast.rs`, the Problems tab). Next: measuring the
-IPC hot path on the M1.
+(`stylus-core/src/contrast.rs`, the Problems tab). The M1 hot-path
+benchmark decided it: **the desktop editor stays on Tauri IPC** (a fast
+400% drag drawn within 7 ms a move, each IPC call about 1 ms; the core
+about 3 µs). Dev builds keep the timing (`src/lib/hotPath.ts`, Help →
+Measure Drawing Speed) for heavier paths later.
 
 **Viewer history, still true:** checked against libansilove on Sixteen
 Colors packs (`scripts/compare-ansilove.sh`, corpus in the scratch
@@ -132,6 +135,8 @@ draws at 16 px; Stylus is right.
   - `examples/render_png.rs`, `examples/png_diff.rs`: for
     `scripts/compare-ansilove.sh`. `examples/roundtrip.rs`: for
     `scripts/roundtrip-corpus.sh` (open, save, reopen, compare pixels).
+    `examples/stroke_bench.rs`: a fast pencil drag in the core alone
+    (run with `--release`), the other half of `src/lib/hotPath.ts`.
   - Later: converters, generators, the animation encoder, the contrast
     checker, the theme-pack model and `stylus-render`.
 - `src-tauri/src/lib.rs`: Tauri commands wrapping the core, for file I/O
@@ -141,7 +146,9 @@ draws at 16 px; Stylus is right.
   (`docs/ansiapps-theme.md`). The main window is `"create": false` and
   built in `setup` only once it's accepted.
 - `src/lib/backend.ts`: the one frontend adapter over the core (Tauri now;
-  WASM for the web and the editor's hot path later).
+  WASM for the web app; the desktop editor stays on IPC, measured on the
+  M1).
+  `lib/hotPath.ts` times the hot-path calls in dev builds only.
 - `src/components/ArtViewer.tsx`: draws the art, one `<canvas>` per band
   of about 2048 px (one canvas can't hold a long ANSI), with a
   determinate progress bar over the rows. Aspect and zoom are CSS

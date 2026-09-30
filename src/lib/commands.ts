@@ -154,6 +154,8 @@ export const MENUS: MenuDef[] = [
     items: [
       { id: "help.shortcuts", label: "Keyboard Shortcuts", shortcut: "mod+/" },
       { id: "help.about", label: "About Stylus" },
+      // Development tools (lib/hotPath.ts); nothing provides them in a release build.
+      { group: "help.dev" },
     ],
   },
 ];

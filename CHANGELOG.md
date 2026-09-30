@@ -2,6 +2,15 @@
 
 ## 0.3.0 (2026-09-30, unreleased)
 
+- **Measuring the editor's hot path** (2026-09-30): `stylus-core`'s
+  `stroke_bench` example times a fast pencil drag in the core alone
+  (about 3 µs a move on the M1). Dev builds time each pencil move from
+  pointer to canvas and each IPC call, log them per stroke, and add
+  Help → Measure Drawing Speed (dev), a scripted drag at 400%. None of
+  it is in a release build. Measured on the M1: a fast drag at 400% is
+  drawn within 7 ms a move (every move inside a 120 Hz frame), so the
+  desktop editor stays on IPC.
+
 - **Editing begins (Phase 1)** (2026-09-30): the Viewer tab is now the Art
   workspace, where opened art can be edited and new art made.
   - New… (80×25, 80×50, 132×25, 160×25 or any size, iCE on or off).

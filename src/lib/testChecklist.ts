@@ -140,5 +140,7 @@ export const CHECKLIST_DATA: ChecklistItem[] = [
   { id: "lint-live", section: "Contrast lint", label: "Recolor a failing word to white; its row goes within a moment. ⌘Z brings it back. Switching iCE Colors changes the list where bright backgrounds are used" },
   { id: "lint-per-doc", section: "Contrast lint", label: "Turn the lint on for one file, open another: it's off there; reopen the first in this session and it's on again" },
   { id: "lint-themes", section: "Contrast lint", label: "Check the Problems tab (rows, the chosen row, the samples) and the outlines on light and dark art in both themes" },
+  // Hot path benchmark (Phase 1b, 2026-09-30; dev builds only)
+  { id: "hot-path-measure", section: "Hot path", label: "Under npm run tauri dev -- --release, New 80×25, then Help → Measure Drawing Speed (dev): the zoom goes to 400%, a zigzag of colored blocks draws across the top rows and is undone, and a dialog gives pointer-to-canvas and per-call times" },
   { id: "edit-themes", section: "Editor", label: "Check the editor in both themes: menu bar and its menus, tool rail (with its options and Selection buttons), the selection outline, panels, strip, status bar and the Save and New dialogs are readable, and the art's colors never change" },
 ];

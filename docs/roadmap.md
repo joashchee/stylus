@@ -92,13 +92,32 @@ ID-signed, notarized, the in-development warning on).
   format compatibility check behind the save-loss warning. Undo is
   Stylus's: one step per stroke (a pencil drag, a typed character) or
   resize.
-- [ ] **Hot path benchmark on the M1:** the WASM core in the webview vs
+- [x] **Hot path benchmark on the M1:** the WASM core in the webview vs
   Tauri IPC per stroke, as the notes recommend. **Started:** the first
   editor uses IPC (an edit, then a render of just the changed cells, drawn
   by icy_engine's own renderer rather than a glyph atlas, so the canvas
   matches the viewer exactly). Every call goes through `lib/backend.ts`,
   so moving to WASM changes one file. Measure a fast pencil drag at
-  400% on the M1; move to WASM if it lags.
+  400% on the M1; move to WASM if it lags. **The core's side, measured
+  2026-09-30 on the M1** (`stylus-core/examples/stroke_bench.rs`,
+  release): a pencil move (apply, render the changed cell, read the cell
+  under the pointer) takes a median 2.7 µs, 95% under 4.5 µs, on 80×25
+  and 160×1000 alike, two blink frames included. The core can't be what
+  lags, so the choice rests on IPC and the webview. Dev builds time each
+  hot-path call and each move from pointer event to canvas
+  (`src/lib/hotPath.ts`), log every pencil stroke to the console, and
+  Help → Measure Drawing Speed (dev) runs a scripted fast drag at 400%.
+  **In the app, 2026-09-30** (`npm run tauri dev -- --release`, a fast
+  drag at 400%, 521 moves): pointer to canvas a median 2 ms, 95% within
+  5 ms, worst 7 ms, so every move was drawn inside one 120 Hz frame
+  (8.3 ms); 118 moves drawn a second, the pointer's own rate; never more
+  than 2 waiting. Each IPC call is about 1 ms (`applyEdits`,
+  `renderCells`, `cellAt` alike), against microseconds of core work, so
+  IPC is nearly all of it, and it's enough. WebKit gives
+  `performance.now()` to the whole millisecond, so these are rounded.
+  **Decided: the desktop editor stays on IPC**; WASM comes with the web
+  app (Phase 4a). Measure again if a heavier path (a big selection move,
+  a shape across a 160-column canvas) feels slow.
 - [ ] **The model carries layers and frames from day one,** even though
   their UI comes in Phase 3, so no later file format change is needed.
 

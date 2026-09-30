@@ -8,13 +8,14 @@
  * - Web (later, build step 7): the same core compiled to WebAssembly,
  *   picked at build time.
  *
- * The editor's hot path will run the WASM core in the webview on desktop
- * too, since a keystroke can't wait on an IPC round trip per cell. The
- * core builds for wasm32 (icy_tools 2e4e2b1); only the Tauri side exists
- * so far.
+ * The desktop editor's hot path stays on IPC: measured on the M1, a fast
+ * pencil drag at 400% is drawn within 7 ms a move, each call about 1 ms
+ * (docs/roadmap.md, 1b). The core builds for wasm32 (icy_tools 2e4e2b1)
+ * for the web app. Dev builds time the hot-path calls (lib/hotPath.ts).
  */
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { timeCall } from "./hotPath";
 
 export interface CoreInfo {
   /** stylus-core's crate version. */
@@ -274,7 +275,7 @@ export function documentInfo(id: number): Promise<DocumentInfo> {
 
 /** Applies edits as part of stroke `stroke`: the same id undoes together. */
 export function applyEdits(id: number, stroke: number, edits: CellEdit[]): Promise<EditResult> {
-  return invoke<EditResult>("apply_edits", { id, stroke, edits });
+  return timeCall("applyEdits", () => invoke<EditResult>("apply_edits", { id, stroke, edits }));
 }
 
 export function undo(id: number): Promise<EditResult> {
@@ -290,12 +291,12 @@ export function resizeArt(id: number, columns: number, rows: number): Promise<Do
 }
 
 export function cellAt(id: number, x: number, y: number): Promise<CellInfo | null> {
-  return invoke<CellInfo | null>("cell_at", { id, x, y });
+  return timeCall("cellAt", () => invoke<CellInfo | null>("cell_at", { id, x, y }));
 }
 
 /** A rectangle of cells as RGBA, for redrawing what an edit changed. */
 export async function renderCells(id: number, rect: CellRect, blinkOn: boolean): Promise<Band> {
-  const buffer = await invoke<ArrayBuffer>("render_cells", { id, rect, blinkOn });
+  const buffer = await timeCall("renderCells", () => invoke<ArrayBuffer>("render_cells", { id, rect, blinkOn }));
   const header = new DataView(buffer, 0, 8);
   return {
     width: header.getUint32(0, true),
