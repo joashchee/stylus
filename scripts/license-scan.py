@@ -29,13 +29,12 @@ COPYLEFT = re.compile(r"\b(A?GPL|LGPL|EUPL|OSL|CDDL|CC-BY-SA|SSPL)", re.I)
 # app. Listed in the counts, not failed. Modifying an MPL file would mean
 # publishing that file's changes.
 
-# name -> why it's allowed (checked 2026-09-29 at icy_tools b85e565).
+# name -> why it's allowed (checked 2026-09-30 at icy_tools 2e4e2b1).
 REVIEWED = {
     "icy_engine": "icy_tools, no license field in its Cargo.toml; the repo is MIT OR Apache-2.0 (LICENSE-MIT, LICENSE-APACHE)",
     "icy_sauce": "license-file is Apache-2.0 (github.com/mkrueger/icy_sauce)",
     "codepages": "icy_board repo, no license field; the repo's LICENSE is Apache-2.0",
-    "icy_net": "icy_board repo, no license field; the repo's LICENSE is Apache-2.0",
-    "unrar_sys": "declares MIT OR Apache-2.0 but vendors RARLAB's UnRAR source (freeware, not OSI). Not copyleft; open question in CLAUDE.md",
+    "icy_terminal_emulation": "icy_board repo, no license field; the repo's LICENSE is Apache-2.0",
 }
 
 

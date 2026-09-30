@@ -6,11 +6,27 @@ import { ActivityStatus } from "./components/ActivityStatus";
 import { AppTesting } from "./components/AppTesting";
 import { ArtViewer, type Zoom } from "./components/ArtViewer";
 import { Dialog } from "./components/Dialog";
+import { ImageToAnsi } from "./components/ImageToAnsi";
 import { AppMarkIcon, ChecklistIcon, FolderIcon, GearIcon, InfoIcon } from "./components/icons";
 import { SaucePanel } from "./components/SaucePanel";
 import { StartupScreen } from "./components/StartupScreen";
 import { useActivities } from "./lib/activity";
-import { closeArt, coreInfo, openArt, openExtensions, setRenderSettings, type CoreInfo, type OpenedArt, type RenderSettings } from "./lib/backend";
+import {
+  closeArt,
+  converterLicense,
+  coreInfo,
+  imageExtensions,
+  libraryNotices,
+  listConverters,
+  openArt,
+  openExtensions,
+  setRenderSettings,
+  type ConverterInfo,
+  type LibraryNotice,
+  type CoreInfo,
+  type OpenedArt,
+  type RenderSettings,
+} from "./lib/backend";
 import { applyTheme, loadTheme, type Theme } from "./lib/theme";
 
 /**
@@ -33,6 +49,13 @@ function App() {
   const [core, setCore] = useState<CoreInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [extensions, setExtensions] = useState<string[]>([]);
+  const [imageExts, setImageExts] = useState<string[]>([]);
+  const [converters, setConverters] = useState<ConverterInfo[]>([]);
+  const [libraries, setLibraries] = useState<LibraryNotice[]>([]);
+  const [view, setView] = useState<"viewer" | "image">("viewer");
+  const [droppedImage, setDroppedImage] = useState<{ path: string; at: number } | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+  const [licenseShown, setLicenseShown] = useState<{ id: string; text: string } | null>(null);
   const [art, setArt] = useState<OpenedArt | null>(null);
   const [zoom, setZoom] = useState<Zoom>("fit");
   const [dropActive, setDropActive] = useState(false);
@@ -44,10 +67,13 @@ function App() {
   useEffect(() => applyTheme(theme), [theme]);
 
   useEffect(() => {
-    Promise.all([coreInfo(), openExtensions()])
-      .then(([info, exts]) => {
+    Promise.all([coreInfo(), openExtensions(), imageExtensions(), listConverters(), libraryNotices()])
+      .then(([info, exts, imgExts, convs, libs]) => {
+        setLibraries(libs);
         setCore(info);
         setExtensions(exts);
+        setImageExts(imgExts);
+        setConverters(convs);
       })
       .catch((e) => setError(`Couldn't start the engine: ${e}`))
       .finally(() => finishStep("core"));
@@ -90,7 +116,8 @@ function App() {
     }
   }
 
-  // Dropping a file on the window opens it (tauri.conf.json's dragDropEnabled).
+  // Dropping a file on the window opens it (tauri.conf.json's dragDropEnabled):
+  // art in the viewer, an image in Image to ANSI.
   useEffect(() => {
     const unlisten = getCurrentWebview().onDragDropEvent((event) => {
       const p = event.payload;
@@ -98,13 +125,26 @@ function App() {
       else if (p.type === "leave") setDropActive(false);
       else if (p.type === "drop") {
         setDropActive(false);
-        const path = p.paths.find((f) => extensions.includes(f.split(".").pop()?.toLowerCase() ?? ""));
-        if (path) void openPath(path);
-        else if (p.paths.length > 0) setError(`Stylus can't open that file. It opens ${extensions.map((e) => `.${e.toUpperCase()}`).join(", ")}.`);
+        const ext = (f: string) => f.split(".").pop()?.toLowerCase() ?? "";
+        const artPath = p.paths.find((f) => extensions.includes(ext(f)));
+        const imagePath = p.paths.find((f) => imageExts.includes(ext(f)));
+        if (artPath) {
+          setView("viewer");
+          void openPath(artPath);
+        } else if (imagePath) {
+          setView("image");
+          setDroppedImage({ path: imagePath, at: Date.now() });
+        } else if (p.paths.length > 0) {
+          setError(
+            `Stylus can't open that file. It opens ${extensions.map((e) => `.${e.toUpperCase()}`).join(", ")}, and converts images (${imageExts
+              .map((e) => `.${e.toUpperCase()}`)
+              .join(", ")}) to ANSI.`,
+          );
+        }
       }
     });
     return () => void unlisten.then((f) => f());
-  }, [extensions, openPath]);
+  }, [extensions, imageExts, openPath]);
 
   useEffect(() => {
     if (!gearOpen) return;
@@ -198,9 +238,47 @@ function App() {
         </div>
       </header>
 
+      <nav className="view-tabs" aria-label="Views">
+        <button
+          type="button"
+          className={`view-tab${view === "viewer" ? " selected" : ""}`}
+          aria-pressed={view === "viewer"}
+          data-testid="tab-viewer"
+          onClick={() => setView("viewer")}
+        >
+          Viewer
+        </button>
+        <button
+          type="button"
+          className={`view-tab${view === "image" ? " selected" : ""}`}
+          aria-pressed={view === "image"}
+          data-testid="tab-image-to-ansi"
+          onClick={() => setView("image")}
+        >
+          Image to ANSI
+        </button>
+      </nav>
+
       {error && <p className="error">{error}</p>}
+      {status && !error && (
+        <p className="status-message" role="status">
+          {status}
+        </p>
+      )}
       <ActivityStatus activities={activities} />
 
+      <div hidden={view !== "image"}>
+        <ImageToAnsi
+          converters={converters}
+          extensions={imageExts}
+          droppedPath={droppedImage}
+          runActivity={runActivity}
+          onError={setError}
+          onStatus={setStatus}
+        />
+      </div>
+
+      <div hidden={view !== "viewer"}>
       {art ? (
         <div className="viewer-layout">
           <section className="panel viewer-panel">
@@ -275,10 +353,11 @@ function App() {
           </p>
         </section>
       )}
+      </div>
 
       {dropActive && (
         <div className="drop-overlay" aria-hidden="true">
-          <div className="drop-box">Drop to open</div>
+          <div className="drop-box">Drop to open art or convert an image</div>
         </div>
       )}
 
@@ -295,6 +374,44 @@ function App() {
           The ANSIapps theme's font is IBM VGA 8x16 from The Ultimate Oldschool PC Font Pack by VileR (int10h.org/oldschool-pc-fonts), licensed under CC BY-SA 4.0 and
           included unmodified.
         </p>
+        <h3 className="about-section-title">Image to ANSI converters</h3>
+        <p className="about-section-desc">
+          Image to ANSI carries Rust ports of these open-source converters, each under its own license. Choose a license to read it in full.
+        </p>
+        <ul className="about-converters" data-testid="about-converters">
+          {converters.map((c) => (
+            <li key={c.id}>
+              <span>
+                {c.name} ({c.origin}). {c.copyright}.{" "}
+              </span>
+              <button
+                type="button"
+                className="link-btn"
+                onClick={() =>
+                  licenseShown?.id === c.id
+                    ? setLicenseShown(null)
+                    : void converterLicense(c.id).then((text) => setLicenseShown({ id: c.id, text }), (e) => setError(String(e)))
+                }
+              >
+                {c.license} license
+              </button>
+              {licenseShown?.id === c.id && <pre className="license-text">{licenseShown.text}</pre>}
+            </li>
+          ))}
+        </ul>
+        <p className="about-section-desc">The ports also carry code ported from these libraries:</p>
+        <ul className="about-converters" data-testid="about-libraries">
+          {libraries.map((l) => (
+            <li key={l.name}>
+              <details>
+                <summary>
+                  {l.name} ({l.origin}), {l.license} license: {l.usedFor}
+                </summary>
+                <pre className="license-text">{l.licenseText}</pre>
+              </details>
+            </li>
+          ))}
+        </ul>
       </Dialog>
 
       {import.meta.env.DEV && <AppTesting open={appTestingOpen} onClose={() => setAppTestingOpen(false)} />}

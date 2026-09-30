@@ -3,6 +3,7 @@
 //! compile it to WebAssembly. See Diskette's docs/stylus-notes.md,
 //! "Architecture".
 
+pub mod convert;
 mod document;
 mod sauce;
 
@@ -12,7 +13,7 @@ pub use sauce::{decode_cp437, SauceInfo};
 use serde::Serialize;
 
 /// The icy_tools git revision in Cargo.toml. Keep the two in step.
-pub const ICY_TOOLS_REV: &str = "b85e565d5ca258f01fd0dd16e5ae1ee6a354e452";
+pub const ICY_TOOLS_REV: &str = "2e4e2b1b03ba7f2beb7954585de3de99c541dea6";
 
 /// File extensions the viewer opens (build step 2's v1 formats, plus what
 /// icy_engine loads besides). Lower case, without the dot. The file dialog

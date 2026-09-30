@@ -23,6 +23,11 @@
 # right. A .BIN mismatch in only those cells is this, not a Stylus bug.
 # Fix proposed: https://github.com/ansilove/libansilove/pull/28
 #
+# icy_engine keeps BEL (0x07) as a control code in art files, by its
+# maintainer's choice (icy_tools#187): the ANSI format is terminal output,
+# and control-code glyphs belong in .XB. ansilove draws it as •, so a file
+# with BEL bytes differs in those cells. That's expected.
+#
 # Intended differences, not bugs (the report shows "0 of N shared pixels
 # differ" with different sizes):
 # - ansilove keeps trailing blank rows, where the cursor ended up. Stylus

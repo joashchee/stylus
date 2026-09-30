@@ -251,3 +251,14 @@
 /* Drop overlay, as Diskette's */
 :root[data-theme="ansiapps"] .drop-overlay { background: rgba(0, 0, 170, 0.9); }
 :root[data-theme="ansiapps"] .drop-box { border: 3px double var(--dos-white); color: var(--dos-black); background: var(--dos-cyan); box-shadow: var(--dos-shadow); }
+
+/* Image to ANSI cards: framed in light cyan on the blue desktop */
+:root[data-theme="ansiapps"] .conversion-card { background: var(--dos-blue); border: 1px solid var(--dos-lightcyan); }
+:root[data-theme="ansiapps"] .conversion-label strong { color: var(--dos-yellow); }
+:root[data-theme="ansiapps"] .conversion-details summary { color: var(--dos-lightcyan); }
+:root[data-theme="ansiapps"] .view-tab:hover { background: var(--dos-blue); color: var(--dos-white); }
+/* Links in the (light gray) About dialog: blue, underlined, not a button */
+:root[data-theme="ansiapps"] .dialog-box .link-btn,
+:root[data-theme="ansiapps"] .link-btn { background: none; box-shadow: none; color: var(--dos-blue); text-decoration: underline; padding: 0; }
+:root[data-theme="ansiapps"] .dialog-box .link-btn:hover { background: none; color: var(--dos-black); }
+:root[data-theme="ansiapps"] .license-text { border: 1px solid var(--dos-black); color: var(--dos-black); background: var(--dos-white); }

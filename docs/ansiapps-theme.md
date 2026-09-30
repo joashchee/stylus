@@ -86,6 +86,10 @@ for free.
   boxes get single-line frames.
 - **Depth**: hard black drop shadows with no blur: 16px for
   windows, 8px for buttons. A pressed button shifts into its shadow.
+  Keep its whole face clickable while it does: the shift moves the hit
+  box too, so a release near the top or left edge would miss and the
+  click would be lost. Diskette covers the spot it left with an
+  `::after` box during `:active` (`src/ansiapps-theme.css`).
 - **Selection**: list rows are borderless lines, and the selected one
   is a cyan bar with black text, as in a file panel. Menus highlight
   in green.
@@ -112,8 +116,25 @@ for free.
 ## Shared UI conventions (every ansiapps app)
 
 **Decided 2026-09-27.** Beyond the two themes, every ansiapps app shares
-the three behaviors below. Diskette is again the reference, and each
+the behaviors below. Diskette is again the reference, and each
 must look right in both themes.
+
+### An in-development warning on first run
+
+**Decided 2026-09-30.** On first run, before the window or its loading
+screen exists, a native OS dialog says the app is still in development
+and used at the user's own risk. Two buttons: **OK** opens the window
+and starts loading (and is remembered, so it never asks again);
+**I'll Be Back.** quits cleanly, having created nothing but what the OS
+itself makes, and the warning shows again next launch.
+
+- Diskette: `src-tauri/src/first_run.rs`. The main window is
+  `"create": false` in `tauri.conf.json`, and `setup` builds it (and
+  opens the catalog) only once the warning is accepted. The answer is a
+  marker file in the app-data dir. The dialog is native, so it doesn't
+  follow the ANSIapps theme; nothing of the app is drawn yet.
+- Web trials can't remember anything, so a trial would ask on every
+  visit (see `web-trial.md`).
 
 ### A loading screen from the first paint
 

@@ -9,8 +9,9 @@
  *   picked at build time.
  *
  * The editor's hot path will run the WASM core in the webview on desktop
- * too, since a keystroke can't wait on an IPC round trip per cell. Until
- * icy_engine builds for wasm32 (icy_tools#186), only the Tauri side exists.
+ * too, since a keystroke can't wait on an IPC round trip per cell. The
+ * core builds for wasm32 (icy_tools 2e4e2b1); only the Tauri side exists
+ * so far.
  */
 import { invoke } from "@tauri-apps/api/core";
 
@@ -105,4 +106,79 @@ export async function renderBand(id: number, firstRow: number, rowCount: number,
     height: header.getUint32(4, true),
     rgba: new Uint8ClampedArray(buffer, 8),
   };
+}
+
+/** Where an image-to-ANSI converter came from and how it's run; mirrors stylus-core's `ConverterInfo`. */
+export interface ConverterInfo {
+  /** Stable id, used in saved file names. */
+  id: string;
+  /** The project's own name. */
+  name: string;
+  /** The repository it's from, e.g. "github.com/koan-shdw/koan-ansi". */
+  origin: string;
+  copyright: string;
+  /** SPDX license id. */
+  license: string;
+  language: string;
+  /** The commit ported. */
+  revision: string;
+  /** The original's settings used, in its own terms. */
+  settings: string;
+  /** What the port changes from the original, and why. */
+  adaptations: string;
+}
+
+export interface LoadedImage {
+  id: number;
+  name: string;
+  width: number;
+  height: number;
+}
+
+export function imageExtensions(): Promise<string[]> {
+  return invoke<string[]>("image_extensions");
+}
+
+export function listConverters(): Promise<ConverterInfo[]> {
+  return invoke<ConverterInfo[]>("list_converters");
+}
+
+/** A converter's full license text. */
+export function converterLicense(id: string): Promise<string> {
+  return invoke<string>("converter_license", { id });
+}
+
+/** Reads and decodes an image for Image to ANSI. Never changes it. */
+export function loadImage(path: string): Promise<LoadedImage> {
+  return invoke<LoadedImage>("load_image", { path });
+}
+
+export function closeImage(id: number): Promise<void> {
+  return invoke("close_image", { id });
+}
+
+/** Converts a loaded image with one converter; the .ANS it makes opens as art. */
+export function convertImage(imageId: number, converterId: string): Promise<OpenedArt> {
+  return invoke<OpenedArt>("convert_image", { imageId, converterId });
+}
+
+/**
+ * Writes converted art to `path`. With `replace` false an existing file is
+ * left alone and the call fails, so saving never overwrites unasked.
+ */
+export function saveMadeArt(id: number, path: string, replace: boolean): Promise<void> {
+  return invoke("save_made_art", { id, path, replace });
+}
+
+/** Library code the converter ports carry, with its license; mirrors stylus-core's `LibraryNotice`. */
+export interface LibraryNotice {
+  name: string;
+  origin: string;
+  license: string;
+  usedFor: string;
+  licenseText: string;
+}
+
+export function libraryNotices(): Promise<LibraryNotice[]> {
+  return invoke<LibraryNotice[]>("library_notices");
 }

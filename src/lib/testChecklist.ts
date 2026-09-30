@@ -20,6 +20,7 @@ export interface ChecklistItem {
 
 export const CHECKLIST_DATA: ChecklistItem[] = [
   // Scaffold (build step 1, 2026-09-29)
+  { id: "startup-dev-warning", section: "Scaffold", label: "First run (delete the in-development-accepted file in ~/Library/Application Support/com.ansiapps.stylus): before any window, a dialog says Stylus is still in development. I'll Be Back. quits with no window; OK opens the launch screen, and the next launch doesn't ask" },
   { id: "startup-ansi", section: "Scaffold", label: "Launch with nothing stored; the launch screen is blue in the VGA font from the first frame, then fades to the app" },
   {
     id: "theme-modern",
@@ -47,4 +48,17 @@ export const CHECKLIST_DATA: ChecklistItem[] = [
   { id: "long-art", section: "Viewer", label: "Open a very long ANSI (1000+ rows); it renders completely with no gaps between bands and scrolls smoothly" },
   { id: "ansi-trim", section: "Viewer", label: "Open a short ANSI (a few lines); the art ends at its last line, with no black 25-line screen below" },
   { id: "viewer-themes", section: "Viewer", label: "Switch themes with art open; the panels change, the art's colors never do" },
+
+  // Image to ANSI (2026-09-30)
+  { id: "i2a-tab", section: "Image to ANSI", label: "Choose the Image to ANSI tab; the panel explains itself and offers Choose image…, and the Viewer tab brings back the art that was open", selector: '[data-testid="tab-image-to-ansi"]' },
+  { id: "i2a-choose", section: "Image to ANSI", label: "Choose image… and pick a photo; one progress bar counts the converters, and a card per converter fills in with its art, name, repository, license and size", selector: '[data-testid="choose-image"]' },
+  { id: "i2a-drop", section: "Image to ANSI", label: "From the Viewer tab, drop a .png on the window; Stylus switches to Image to ANSI and converts it. Dropping an .ANS still opens it in the viewer" },
+  { id: "i2a-labels", section: "Image to ANSI", label: "Every card's name is different, and \"How it's run here\" shows its settings, what the port changes and the commit it was ported from" },
+  { id: "i2a-save-one", section: "Image to ANSI", label: "Save .ANS… on a card; the dialog suggests <image>-<converter>.ans, and the saved file opens in the Viewer with SAUCE naming the converter in its comments" },
+  { id: "i2a-save-all", section: "Image to ANSI", label: "Save all… into an empty folder; one .ANS per converter appears. Do it again into the same folder; nothing is replaced, and an error names the files left alone", selector: '[data-testid="save-all"]' },
+  { id: "i2a-transparency", section: "Image to ANSI", label: "Convert a PNG with transparency and a tiny image (a 16×16 icon); every converter still finishes with art or a readable error" },
+  { id: "i2a-untouched", section: "Image to ANSI", label: "After converting, check the image in Finder; its modified date hasn't changed" },
+  { id: "i2a-new-image", section: "Image to ANSI", label: "Convert a second image while the first is still converting; the old cards give way to the new image's, with no mix of the two" },
+  { id: "i2a-about", section: "Image to ANSI", label: "Gear → About Stylus lists every converter with its copyright, each license opens in full, and the ported libraries' licenses open too, readable in both themes" },
+  { id: "i2a-themes", section: "Image to ANSI", label: "Switch themes with results showing; cards, tabs and labels stay readable, and the art's colors never change" },
 ];

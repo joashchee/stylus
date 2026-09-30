@@ -1,6 +1,14 @@
 # Upstream proposal: `net` and `archives` features for icy_engine
 
-**Status:** opened 2026-09-29 as
+**Status: closed unmerged, 2026-09-30.** The maintainer solved it at the
+source instead, preferring Rust-only fixes over feature flags:
+`TerminalEmulation` moved to `icy_terminal_emulation` (icy_board
+`bf5d2fb`), pure-Rust `ruzstd` for `.icy` files (`899f8bec`), C-free
+unarc-rs 0.7 and retrofont (`455869c3`), and icy_engine off icy_net
+(`2e4e2b1b`). icy_engine builds for wasm32 with its default features;
+Stylus pins `2e4e2b1`. Kept as a record; don't apply the patch.
+
+Originally opened 2026-09-29 as
 [mkrueger/icy_tools#186](https://github.com/mkrueger/icy_tools/pull/186),
 from `joashchee/icy_tools` branch `wasm-feature-flags` (commit `4b1b7f0`,
 on `b85e565`). The patch is `icy_engine-net-archives-features.patch` next

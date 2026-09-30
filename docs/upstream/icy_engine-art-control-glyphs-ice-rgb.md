@@ -1,6 +1,14 @@
 # Upstream proposal: BEL/DEL glyphs in art files, RGB backgrounds under iCE
 
-**Status:** opened 2026-09-29 as
+**Status: merged 2026-09-29 as `be236b5`, with the maintainer's changes.**
+DEL prints ⌂ on CP437 screens (art files and terminals alike; Unicode
+screens ignore it), and iCE brightens only 16-color backgrounds and always
+clears blink, so the GUI doesn't hide those cells' text. **BEL stays a
+control code**, art files included: the maintainer treats ANSI as terminal
+output and points to `.XB` for control glyphs. The patch below is what was
+proposed, not what landed.
+
+Originally opened 2026-09-29 as
 [mkrueger/icy_tools#187](https://github.com/mkrueger/icy_tools/pull/187),
 from `joashchee/icy_tools` branch `art-file-fixes` (commit `fe633b3`, on
 `b85e565`). The patch is `icy_engine-art-control-glyphs-ice-rgb.patch` next
