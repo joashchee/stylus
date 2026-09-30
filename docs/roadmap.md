@@ -150,11 +150,18 @@ ID-signed, notarized, the in-development warning on).
   every ⌘ shortcut; Help → Keyboard Shortcuts from the same table; the
   Art and Make switcher and the gear at the menu bar's right; the
   toolbar gone into the menus; the art's name in the window title and
-  the status bar. **Left:** the macOS native menu bar from the same
-  registry (needs trying in the app: the webview and the native Edit
-  items both want ⌘C/⌘V, and text fields must keep them), document
-  tabs, the Properties and Problems tabs, the rail's icons and flyouts,
-  and the resizable panel.
+  the status bar. The macOS native menu bar from the same registry
+  (**done 2026-09-30**, `src-tauri/src/native_menu.rs`): the frontend
+  sends the menus as they stand and where the keyboard is; on the art
+  the commands carry their ⌘ shortcuts, and in a text field or dialog
+  Undo, Redo, Cut, Copy, Paste and Select All become the standard macOS
+  items and the rest drop their shortcuts (greyed out under a dialog),
+  so the keys do the same whichever of the webview and the menu sees
+  them first. Keys without ⌘ never go to the menu. Quit closes the
+  window, so unsaved changes are asked about. Still to try in the app
+  (the App Testing "Native menu" items). **Left:** document tabs, the
+  Properties and Problems tabs, the rail's icons and flyouts, and the
+  resizable panel.
 - [ ] **Files:** new, save, save as, recent files, unsaved-change
   prompts, and autosave to the app-data folder for crash recovery
   (never over the user's file). **Done:** new, save (asks the first

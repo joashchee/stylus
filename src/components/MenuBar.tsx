@@ -8,37 +8,14 @@
  * another title opens that one. Keyboard: Option/Alt + an access letter
  * opens a menu, arrows move through items and menus, Enter runs, Esc
  * closes.
+ *
+ * On macOS it also keeps the native menu bar in step (lib/nativeMenu.ts).
  */
 import { Fragment, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
-import { forSomethingElse, IS_MAC, MENUS, shortcutLabel, useMenuState, type CommandDef, type Handler, type MenuDef, type MenuId } from "../lib/commands";
+import { forSomethingElse, IS_MAC, menuItems, MENUS, shortcutLabel, useMenuState, type CommandDef, type MenuId, type MenuItem } from "../lib/commands";
+import { useNativeMenu } from "../lib/nativeMenu";
 
-interface Item {
-  id: string;
-  label: string;
-  shortcut?: string;
-  handler?: Handler;
-}
-
-/** A menu's items as they stand now: groups filled in, stray separators dropped. */
-function itemsOf(menu: MenuDef, handlers: Record<string, Handler>): (Item | "-")[] {
-  const out: (Item | "-")[] = [];
-  for (const entry of menu.items) {
-    if (entry === "-") {
-      out.push("-");
-    } else if ("group" in entry) {
-      const prefix = `${entry.group}.`;
-      const ids = Object.keys(handlers).filter((id) => id.startsWith(prefix));
-      if (ids.length > 0) out.push("-");
-      for (const id of ids) out.push({ id, label: handlers[id].label ?? id.slice(prefix.length), handler: handlers[id] });
-    } else {
-      const c = entry as CommandDef;
-      out.push({ id: c.id, label: c.label, shortcut: c.shortcut, handler: handlers[c.id] });
-    }
-  }
-  return out.filter((item, i) => item !== "-" || (i > 0 && i < out.length - 1 && out[i - 1] !== "-"));
-}
-
-function enabled(item: Item | "-"): item is Item {
+function enabled(item: MenuItem | "-"): item is MenuItem {
   return item !== "-" && !!item.handler && item.handler.enabled !== false;
 }
 
@@ -58,6 +35,7 @@ function AccessLabel({ label, access }: { label: string; access: string }) {
 export function MenuBar({ start, end }: { start?: ReactNode; end?: ReactNode }) {
   const registry = useMenuState();
   const handlers = registry.handlers();
+  useNativeMenu();
   const [open, setOpen] = useState<MenuId | null>(null);
   const barRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -145,7 +123,7 @@ export function MenuBar({ start, end }: { start?: ReactNode; end?: ReactNode }) 
       {start}
       <div className="menu-titles" role="menubar" aria-label="Menus">
         {MENUS.map((menu) => {
-          const items = open === menu.id ? itemsOf(menu, handlers) : [];
+          const items = open === menu.id ? menuItems(menu, handlers) : [];
           if (open === menu.id) itemRefs.current = [];
           return (
             <div key={menu.id} className="menu-wrap">

@@ -14,6 +14,7 @@
  * so far.
  */
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 
 export interface CoreInfo {
   /** stylus-core's crate version. */
@@ -369,4 +370,32 @@ export function copyCells(id: number, rect: CellRect): Promise<{ width: number; 
 /** Pastes Stylus's clipboard at `at`; returns what changed and where the paste landed. */
 export function pasteCells(id: number, stroke: number, at: Point, transparent: boolean): Promise<[EditResult, CellRect | null]> {
   return invoke<[EditResult, CellRect | null]>("paste_cells", { id, stroke, at, transparent });
+}
+
+/** An item of the macOS menu bar; mirrors src-tauri's `native_menu::NativeItem`. */
+export interface NativeItem {
+  id: string;
+  label: string;
+  /** The registry's form (`mod+shift+s`); only ⌘ shortcuts reach the menu. */
+  shortcut?: string;
+  enabled: boolean;
+  /** Present for items with a tick. */
+  checked?: boolean;
+}
+
+export interface NativeMenuSpec {
+  /** `null` is a separator. */
+  menus: { label: string; items: (NativeItem | null)[] }[];
+  /** Where the keyboard is: the art, a text field, or a dialog. */
+  focus: "art" | "text" | "modal";
+}
+
+/** Builds or updates the macOS menu bar (a no-op elsewhere). */
+export function setNativeMenu(spec: NativeMenuSpec): Promise<void> {
+  return invoke("set_native_menu", { spec });
+}
+
+/** Calls back with a command's id when it's chosen in the macOS menu bar. */
+export function onNativeMenu(run: (id: string) => void): Promise<() => void> {
+  return listen<string>("native-menu", (e) => run(e.payload));
 }

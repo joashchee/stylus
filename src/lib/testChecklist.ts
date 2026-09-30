@@ -113,5 +113,12 @@ export const CHECKLIST_DATA: ChecklistItem[] = [
   { id: "menu-shortcuts-work", section: "Menu bar", label: "⌘N, ⌘O, ⌘S, ⇧⌘S, ⌘Z, ⇧⌘Z, ⌘A, ⌘C, ⌘X, ⌘V, ⌥⌘V, ⌘+, ⌘−, ⌘0 each do what their menu item does, and X swaps the colors while not typing" },
   { id: "menu-text-fields", section: "Menu bar", label: "In the Save As dialog's title field, ⌘A, ⌘C, ⌘V and ⌘Z act on the text, not the art; with no art selection, ⌘C still copies text selected elsewhere on the page" },
   { id: "menu-make", section: "Menu bar", label: "Switch to Make; the Edit, Draw and Select items grey out, and switching back to Art brings them back" },
+  // macOS native menu bar (Phase 1c, 2026-09-30)
+  { id: "native-menus", section: "Native menu", label: "The macOS menu bar has Stylus (About Stylus, Services, Hide, Quit), then File, Edit, Draw, Select, Colors, View, Window and Help, the same items as the in-window menus and in the same order" },
+  { id: "native-state", section: "Native menu", label: "The macOS menu bar greys out and ticks the same items as the in-window menus: select cells and Cut/Copy light up; switch tool and the tick in Draw moves; switch to Make and the Edit, Draw and Select items grey out" },
+  { id: "native-run", section: "Native menu", label: "Choosing an item in the macOS menu bar (Save As…, Flip Horizontal, Zoom In, Keyboard Shortcuts, About Stylus) does what the in-window item does, once" },
+  { id: "native-keys-once", section: "Native menu", label: "With a selection on the art, ⌘C then ⌘V pastes one copy, ⌘Z undoes one step, and ⌘S opens Save once (no command runs twice); tool letters still work and the menu shows none" },
+  { id: "native-text-fields", section: "Native menu", label: "In a text field (Save As title, Image to ANSI settings), ⌘A, ⌘C, ⌘X, ⌘V and ⌘Z edit the text, from the keyboard and from the macOS Edit menu; with a dialog open the menu bar's commands are greyed out" },
+  { id: "native-quit", section: "Native menu", label: "With unsaved changes, ⌘Q (or Stylus → Quit) asks first; Cancel keeps the art open, discarding quits. ⌘W asks the same way" },
   { id: "edit-themes", section: "Editor", label: "Check the editor in both themes: menu bar and its menus, tool rail (with its options and Selection buttons), the selection outline, panels, strip, status bar and the Save and New dialogs are readable, and the art's colors never change" },
 ];

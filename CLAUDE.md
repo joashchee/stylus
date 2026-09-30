@@ -30,9 +30,9 @@ editing core with undo by stroke, New, Save and Save As in all seven
 formats with the loss warning and SAUCE fields, the corpus round trip,
 and every Phase 1 tool (Pencil, Eraser, Line, Rectangle, Box,
 Half-block, Type, Select, Fill, Pick) with selection (cut, copy, paste,
-move, flip, fill, clear), and the menu bar over one command registry.
-Next: the macOS native menu from that registry, recent files and
-autosave, PNG export, the contrast lint, and measuring
+move, flip, fill, clear), and the menu bar over one command registry, mirrored in the macOS menu
+bar (`src-tauri/src/native_menu.rs`, `src/lib/nativeMenu.ts`). Next:
+recent files and autosave, PNG export, the contrast lint, and measuring
 the IPC hot path on the M1.
 
 **Viewer history, still true:** checked against libansilove on Sixteen
@@ -145,7 +145,7 @@ draws at 16 px; Stylus is right.
   the shortcuts (not in text fields or dialogs, and a disabled command
   leaves the key alone). Add a command here, never a separate keydown
   listener. `components/MenuBar.tsx` draws it (and `ShortcutList` for
-  Help); canvas-only keys (tool letters, Delete, Esc) are marked
+  Help), and `lib/nativeMenu.ts` sends it to the macOS menu bar; canvas-only keys (tool letters, Delete, Esc) are marked
   `canvasKey` and handled by the canvas.
 - `src/components/ImageToAnsi.tsx`: the Image to ANSI tab (results drawn
   by `ArtThumb.tsx`). Dropping an image on the window opens it here;

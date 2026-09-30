@@ -8,6 +8,7 @@ Unresearched beyond naming the mechanism.
 | Feature | macOS | Windows | Linux |
 |---|---|---|---|
 | Install location for local release builds | `~/Applications/Stylus.app` via `ditto` (`scripts/build-release.sh`) | n/a (installer) | n/a (package) |
+| Native menu bar from the command registry | App menu bar via Tauri's menu API (`src-tauri/src/native_menu.rs`, `src/lib/nativeMenu.ts`); standard Edit items while a text field or dialog has the keyboard | None: the in-window menu bar only (the webview keeps the keys) | Same as Windows |
 
 Planned, add a row when each lands: file associations for `.ANS`, `.XB`,
 `.BIN` and the rest, and Quick Look previews of `.ANS`.

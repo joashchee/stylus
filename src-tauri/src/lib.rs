@@ -14,6 +14,7 @@ use tauri::ipc::Response;
 use tauri::{AppHandle, Manager, State};
 
 mod first_run;
+mod native_menu;
 
 /// Art the user has open, by id. The frontend holds only ids.
 #[derive(Default)]
@@ -514,6 +515,8 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_log::Builder::new().level(log::LevelFilter::Info).build())
         .manage(Shared::default())
+        .manage(native_menu::NativeMenu::default())
+        .on_menu_event(|app, event| native_menu::on_menu_event(app, event.id().as_ref()))
         .setup(|app| {
             let app_data_dir = app.path().app_data_dir().expect("failed to resolve app data dir");
             // The main window has `"create": false` in tauri.conf.json, so
@@ -559,7 +562,8 @@ pub fn run() {
             close_image,
             convert_image,
             save_made_art,
-            export_app_testing_report
+            export_app_testing_report,
+            native_menu::set_native_menu
         ])
         .run(tauri::generate_context!())
         .expect("error while running Stylus");

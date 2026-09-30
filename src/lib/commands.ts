@@ -163,6 +163,32 @@ export interface Handler {
 
 export type Handlers = Record<string, Handler>;
 
+/** A menu item as it stands now, for the in-window and native menus. */
+export interface MenuItem {
+  id: string;
+  label: string;
+  shortcut?: string;
+  handler?: Handler;
+}
+
+/** A menu's items as they stand now: groups filled in, stray separators dropped. */
+export function menuItems(menu: MenuDef, handlers: Handlers): (MenuItem | "-")[] {
+  const out: (MenuItem | "-")[] = [];
+  for (const entry of menu.items) {
+    if (entry === "-") {
+      out.push("-");
+    } else if ("group" in entry) {
+      const prefix = `${entry.group}.`;
+      const ids = Object.keys(handlers).filter((id) => id.startsWith(prefix));
+      if (ids.length > 0) out.push("-");
+      for (const id of ids) out.push({ id, label: handlers[id].label ?? id.slice(prefix.length), handler: handlers[id] });
+    } else {
+      out.push({ id: entry.id, label: entry.label, shortcut: entry.shortcut, handler: handlers[entry.id] });
+    }
+  }
+  return out.filter((item, i) => item !== "-" || (i > 0 && i < out.length - 1 && out[i - 1] !== "-"));
+}
+
 export const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 
 /** A shortcut as the platform writes it: ⇧⌘S on the Mac, Ctrl+Shift+S elsewhere. */

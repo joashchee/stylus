@@ -36,6 +36,12 @@
   (zoom and the render settings in View, iCE in Colors, the Amiga fonts
   in View for text files). The art's name, with • when unsaved, is in
   the window title and the status bar. X swaps the colors.
+- **The macOS menu bar** (2026-09-30) carries the same menus as the
+  in-window bar, from the same command registry: the same items greyed
+  out and ticked, ⌘ shortcuts shown, plus the app menu (About, Services,
+  Hide, Quit) and the Window menu. In a text field or dialog, ⌘C, ⌘V, ⌘Z
+  and ⌘A edit the text. Quit (⌘Q) now asks about unsaved changes, as
+  closing the window does.
 - **Amiga ASCII** (2026-09-30): text files without SAUCE get a Font menu
   with the Amiga fonts, remembered per file type.
 - **UTF-8 text files** (2026-09-30) show their block characters (▀ ▄ █),
