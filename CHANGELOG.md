@@ -2,6 +2,66 @@
 
 ## 0.3.0 (2026-09-30, unreleased)
 
+- **Editing begins (Phase 1)** (2026-09-30): the Viewer tab is now the Art
+  workspace, where opened art can be edited and new art made.
+  - New… (80×25, 80×50, 132×25, 160×25 or any size, iCE on or off).
+  - Type at a cursor (arrows, Home/End, Page Up/Down, Backspace, Delete;
+    Enter or Down on the last row adds a row), the Pencil (right-drag
+    erases), Pick (or Option-click), and painting characters and colors,
+    colors only or characters only.
+  - Ten F-key character sets on F1–F10 and a clickable strip, a
+    256-character picker, 16 color swatches, a status bar.
+  - Undo and redo by stroke (⌘Z, ⇧⌘Z).
+  - Save and Save As in ANSI, plain text, XBin, BIN, Artworx, iCE Draw
+    and TundraDraw, through icy_engine. The dialog lists what the format
+    would lose before saving, and won't save what it can't hold. SAUCE
+    title, author, group and comments are written in one fresh record,
+    keeping the file's date. Save asks the first time it would replace a
+    file; a replaced file is written beside it and moved over it.
+  - Opening, New or closing the window with unsaved changes asks first.
+- **The drawing tools and selection** (2026-09-30): Eraser, Line,
+  Rectangle (outline or filled), Box (single or double lines), the
+  Half-block brush (half-cell pixels, right-drag in the background color),
+  and flood Fill join the Pencil. Shapes preview as the real art while
+  dragged and undo in one step. Select drags a rectangle (or Shift+arrows,
+  ⌘A), and the selection can be cut, copied, pasted (opaque or
+  transparent, into any open document), moved by dragging, flipped (with
+  ▌▐, ▀▄ and the box corners mirrored), filled and cleared. Single-letter
+  tool keys work while not typing; Esc leaves Type.
+- **Menu bar** (2026-09-30): File, Edit, Draw, Select, Colors, View and
+  Help, drawn from one command registry that also runs every shortcut
+  and fills Help → Keyboard Shortcuts. Option plus a menu's letter opens
+  it, and arrows move through it. The Art and Make workspaces and the
+  gear sit at the bar's right; the editor's toolbar went into the menus
+  (zoom and the render settings in View, iCE in Colors, the Amiga fonts
+  in View for text files). The art's name, with • when unsaved, is in
+  the window title and the status bar. X swaps the colors.
+- **Amiga ASCII** (2026-09-30): text files without SAUCE get a Font menu
+  with the Amiga fonts, remembered per file type.
+- **UTF-8 text files** (2026-09-30) show their block characters (▀ ▄ █),
+  which came out blank before.
+- **Saving tested on real art** (2026-09-30): `scripts/roundtrip-corpus.sh`
+  saves every corpus file again and compares pixels. On 181 files: 353
+  saves identical, 9 differing only where the save warned. It found
+  icy_engine's color optimizer dropping look-alike rows from ANSI, so
+  saves are now cell-exact, and a TundraDraw writer bug, written up in
+  `docs/upstream/icy_engine-tundra-initial-color.md` and sent upstream as
+  icy_tools#188.
+- The "77 rows" 162-column file is explained: its SAUCE asks for the EGA
+  8×14 font, which Stylus uses and ansilove doesn't.
+
+- **Roadmap** (2026-09-30): `docs/roadmap.md` consolidates the two
+  ANSI-editor feature surveys with the design notes into a four-phase
+  rollout (open and draw, theme workshop, make and animate for 1.0,
+  everywhere and beyond), and lists the survey features Stylus won't
+  build and why.
+- **UI design** (2026-09-30): `docs/ui-design.md` adapts the ANSI editor
+  UI survey to Stylus's phases and the ANSIapps theme: the Art, Make,
+  Theme and Lab workspaces, the F-key strip, one Problems list, and a
+  native macOS menu bar beside the in-window one. The roadmap moves the
+  command palette and custom shortcuts to Phase 3 and adds a
+  reference-image layer.
+
 - **In-development warning** (2026-09-30): on first run, before any
   window, a native dialog says Stylus is still in development. OK opens
   the app and is remembered (a marker file in the app-data folder);

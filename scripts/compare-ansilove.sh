@@ -34,6 +34,10 @@
 #   stops at the last row with content.
 # - ansilove crops FILE_ID.DIZ to its widest line. Stylus shows it at its
 #   full width.
+# - ansilove draws a SAUCE font of "IBM EGA" (8x14) in its 8x16 font, so
+#   the same rows come out taller (blndr2020/c-mfs - blender.ans: 88 rows,
+#   1408 px from ansilove, 1232 px from Stylus). Stylus uses the 8x14 font
+#   the file names.
 set -eu
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)

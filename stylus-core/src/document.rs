@@ -1,5 +1,6 @@
-//! A piece of art opened for viewing: icy_engine's buffer plus the SAUCE
-//! record, and the render modes Stylus lets the user switch.
+//! A piece of art opened for viewing and editing: icy_engine's buffer plus
+//! the SAUCE record, and the render modes Stylus lets the user switch.
+//! Editing is in `edit.rs`.
 //!
 //! The render modes (9-px letter spacing, iCE colors, aspect correction)
 //! change how the art is shown, never the file. Rendering goes through
@@ -7,8 +8,11 @@
 //! a determinate progress bar (rows rendered) and never hold one giant image.
 
 use icy_engine::formats::FileFormat;
-use icy_engine::{AttributeColor, IceMode, Rectangle, RenderOptions, TextBuffer, TextPane};
+use icy_engine::{AttributeColor, BufferType, IceMode, Rectangle, RenderOptions, TextBuffer, TextPane};
 use icy_sauce::SauceRecord;
+use std::collections::HashSet;
+
+use crate::edit::History;
 use serde::{Deserialize, Serialize};
 
 use crate::sauce::SauceInfo;
@@ -46,6 +50,10 @@ pub struct DocumentInfo {
     pub has_blink: bool,
     pub settings: RenderSettings,
     pub sauce: Option<SauceInfo>,
+    pub can_undo: bool,
+    pub can_redo: bool,
+    /// Changed since it was opened or last saved.
+    pub edited: bool,
 }
 
 /// One band of rendered rows, RGBA, `width * height * 4` bytes.
@@ -56,22 +64,24 @@ pub struct Band {
 }
 
 pub struct Document {
-    buffer: TextBuffer,
+    pub(crate) buffer: TextBuffer,
     sauce: Option<SauceRecord>,
     format: String,
     /// Rows shown. For parsed formats (ANSI, ASCII, PCBoard…) icy_engine
     /// starts from an 80×25 screen, so rows after the last one with content
     /// are padding and are left out, as libansilove does. Binary formats
     /// (BIN, XBin, ADF…) define their height, so every row counts.
-    rows: i32,
+    pub(crate) rows: i32,
     /// Whether icy_engine loaded the file with iCE colors (from SAUCE).
     /// Otherwise the attribute's high bit was stored as blink.
     loaded_ice: bool,
     /// iCE as currently shown.
-    ice: bool,
+    pub(crate) ice: bool,
     /// Cells changed to show the other iCE setting than the loaded one,
-    /// as (layer, x, y), so switching back restores exactly those.
-    switched: Vec<(usize, i32, i32)>,
+    /// as (layer, x, y), so switching back restores exactly those. An
+    /// edited cell leaves the set.
+    pub(crate) switched: HashSet<(usize, i32, i32)>,
+    pub(crate) history: History,
 }
 
 impl Document {
@@ -88,7 +98,26 @@ impl Document {
             format = FileFormat::Ansi;
         }
         let loaded = format.from_bytes(data, None).map_err(|e| e.to_string())?;
-        let buffer = loaded.screen.buffer;
+        let mut buffer = loaded.screen.buffer;
+        // A UTF-8 text or ANSI file is read as Unicode, but the IBM fonts
+        // draw CP437 codes, so ▀ ▄ █ would come out blank. Show each
+        // character as the font's own where CP437 has it.
+        if buffer.buffer_type == BufferType::Unicode {
+            for layer in &mut buffer.layers {
+                for y in 0..layer.height() {
+                    for x in 0..layer.width() {
+                        let mut ch = layer.char_at((x, y).into());
+                        if ch.ch as u32 > 0x7f {
+                            if let Some(cp437) = BufferType::CP437.try_convert_from_unicode(ch.ch) {
+                                ch.ch = cp437;
+                                layer.set_char((x, y), ch);
+                            }
+                        }
+                    }
+                }
+            }
+            buffer.buffer_type = BufferType::CP437;
+        }
         if buffer.width() <= 0 || buffer.height() <= 0 {
             return Err("The file has no art in it".to_string());
         }
@@ -98,15 +127,28 @@ impl Document {
             buffer.height()
         };
         let loaded_ice = matches!(buffer.ice_mode, IceMode::Ice);
-        Ok(Document {
+        Ok(Document::from_buffer(buffer, loaded.sauce_opt, format.name(), rows, loaded_ice))
+    }
+
+    pub(crate) fn from_buffer(buffer: TextBuffer, sauce: Option<SauceRecord>, format: &str, rows: i32, ice: bool) -> Self {
+        Document {
             buffer,
-            sauce: loaded.sauce_opt,
-            format: format.name().to_string(),
+            sauce,
+            format: format.to_string(),
             rows,
-            loaded_ice,
-            ice: loaded_ice,
-            switched: Vec::new(),
-        })
+            loaded_ice: ice,
+            ice,
+            switched: HashSet::new(),
+            history: History::default(),
+        }
+    }
+
+    pub fn columns(&self) -> i32 {
+        self.buffer.width()
+    }
+
+    pub fn rows(&self) -> i32 {
+        self.rows
     }
 
     pub fn settings(&self) -> RenderSettings {
@@ -167,7 +209,7 @@ impl Document {
                             continue;
                         }
                         layer.set_char((x, y), ch);
-                        self.switched.push((l, x, y));
+                        self.switched.insert((l, x, y));
                     }
                 }
             }
@@ -176,7 +218,7 @@ impl Document {
         self.buffer.ice_mode = if ice { IceMode::Ice } else { IceMode::Blink };
     }
 
-    fn has_blink(&self) -> bool {
+    pub(crate) fn has_blink(&self) -> bool {
         self.buffer.layers.iter().any(|layer| {
             (0..layer.height()).any(|y| (0..layer.width()).any(|x| layer.char_at((x, y).into()).attribute.is_blinking()))
         })
@@ -208,6 +250,32 @@ impl Document {
             has_blink: self.has_blink(),
             settings: self.settings(),
             sauce: self.sauce.as_ref().map(SauceInfo::from_record),
+            can_undo: self.can_undo(),
+            can_redo: self.can_redo(),
+            edited: self.is_edited(),
+        }
+    }
+
+    /// Renders a rectangle of cells (clamped to the art), for redrawing what
+    /// an edit changed.
+    pub fn render_cells(&self, rect: crate::edit::CellRect, blink_on: bool) -> Band {
+        let x = rect.x.clamp(0, self.buffer.width());
+        let y = rect.y.clamp(0, self.rows);
+        let width = rect.width.clamp(0, self.buffer.width() - x);
+        let height = rect.height.clamp(0, self.rows - y);
+        if width == 0 || height == 0 {
+            return Band { width: 0, height: 0, rgba: Vec::new() };
+        }
+        let options = RenderOptions {
+            rect: Rectangle::from(x, y, width, height).into(),
+            blink_on,
+            ..Default::default()
+        };
+        let (size, rgba) = self.buffer.render_to_rgba_raw(&options, false);
+        Band {
+            width: size.width as u32,
+            height: size.height as u32,
+            rgba,
         }
     }
 

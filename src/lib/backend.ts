@@ -66,6 +66,10 @@ export interface DocumentInfo {
   hasBlink: boolean;
   settings: RenderSettings;
   sauce: SauceInfo | null;
+  canUndo: boolean;
+  canRedo: boolean;
+  /** Changed since it was opened or last saved. */
+  edited: boolean;
 }
 
 export interface OpenedArt {
@@ -181,4 +185,188 @@ export interface LibraryNotice {
 
 export function libraryNotices(): Promise<LibraryNotice[]> {
   return invoke<LibraryNotice[]>("library_notices");
+}
+
+/** A rectangle of cells; mirrors stylus-core's `CellRect`. */
+export interface CellRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** One cell to change; a field left out keeps what the cell has. Mirrors `CellEdit`. */
+export interface CellEdit {
+  x: number;
+  y: number;
+  /** Character code in the document's font (CP437 for the IBM fonts). */
+  code?: number;
+  fg?: number;
+  bg?: number;
+}
+
+/** What a cell holds; mirrors stylus-core's `CellInfo`. */
+export interface CellInfo {
+  code: number;
+  fg: number;
+  bg: number;
+  blink: boolean;
+  /** A 24-bit color, so fg/bg are the nearest of the 16. */
+  truecolor: boolean;
+}
+
+/** What an edit, undo or redo changed. `info` is set when the size changed. */
+export interface EditResult {
+  dirty: CellRect | null;
+  canUndo: boolean;
+  canRedo: boolean;
+  edited: boolean;
+  info: DocumentInfo | null;
+}
+
+export interface SaveFormat {
+  extension: string;
+  name: string;
+}
+
+/** Something a save would lose; `blocking` means it can't save at all. */
+export interface SaveLoss {
+  blocking: boolean;
+  message: string;
+}
+
+/** The SAUCE text a save writes; mirrors stylus-core's `SauceFields`. */
+export interface SauceFields {
+  title: string;
+  author: string;
+  group: string;
+  /** CCYYMMDD; empty means today. */
+  date: string;
+  comments: string[];
+}
+
+export function newArt(columns: number, rows: number, iceColors: boolean): Promise<OpenedArt> {
+  return invoke<OpenedArt>("new_art", { columns, rows, iceColors });
+}
+
+export function documentInfo(id: number): Promise<DocumentInfo> {
+  return invoke<DocumentInfo>("document_info", { id });
+}
+
+/** Applies edits as part of stroke `stroke`: the same id undoes together. */
+export function applyEdits(id: number, stroke: number, edits: CellEdit[]): Promise<EditResult> {
+  return invoke<EditResult>("apply_edits", { id, stroke, edits });
+}
+
+export function undo(id: number): Promise<EditResult> {
+  return invoke<EditResult>("undo", { id });
+}
+
+export function redo(id: number): Promise<EditResult> {
+  return invoke<EditResult>("redo", { id });
+}
+
+export function resizeArt(id: number, columns: number, rows: number): Promise<DocumentInfo> {
+  return invoke<DocumentInfo>("resize_art", { id, columns, rows });
+}
+
+export function cellAt(id: number, x: number, y: number): Promise<CellInfo | null> {
+  return invoke<CellInfo | null>("cell_at", { id, x, y });
+}
+
+/** A rectangle of cells as RGBA, for redrawing what an edit changed. */
+export async function renderCells(id: number, rect: CellRect, blinkOn: boolean): Promise<Band> {
+  const buffer = await invoke<ArrayBuffer>("render_cells", { id, rect, blinkOn });
+  const header = new DataView(buffer, 0, 8);
+  return {
+    width: header.getUint32(0, true),
+    height: header.getUint32(4, true),
+    rgba: new Uint8ClampedArray(buffer, 8),
+  };
+}
+
+export function saveFormats(): Promise<SaveFormat[]> {
+  return invoke<SaveFormat[]>("save_formats");
+}
+
+export function saveLosses(id: number, extension: string): Promise<SaveLoss[]> {
+  return invoke<SaveLoss[]>("save_losses", { id, extension });
+}
+
+/**
+ * Saves to `path` in the format its extension names. With `replace` false an
+ * existing file is left alone and the call fails; with it true the file is
+ * replaced whole (written beside it, then moved over it).
+ */
+export function saveArt(id: number, path: string, sauce: SauceFields, replace: boolean): Promise<DocumentInfo> {
+  return invoke<DocumentInfo>("save_art", { id, path, sauce, replace });
+}
+
+export function textFonts(): Promise<string[]> {
+  return invoke<string[]>("text_fonts");
+}
+
+/** Shows a text file in another font (Amiga ASCII). Not an edit. */
+export function setTextFont(id: number, name: string): Promise<DocumentInfo> {
+  return invoke<DocumentInfo>("set_text_font", { id, name });
+}
+
+/** A cell position; mirrors stylus-core's `Point`. */
+export interface Point {
+  x: number;
+  y: number;
+}
+
+/** What a tool paints; a field left out keeps what the cell has. Mirrors `Pen`. */
+export interface Pen {
+  code?: number;
+  fg?: number;
+  bg?: number;
+}
+
+/** A dragged shape; mirrors stylus-core's `Shape`. */
+export type Shape =
+  | { kind: "line"; from: Point; to: Point }
+  | { kind: "rectangle"; from: Point; to: Point; filled: boolean }
+  | { kind: "box"; from: Point; to: Point; double: boolean };
+
+/** Something done to the selection; mirrors stylus-core's `SelectionOp`. */
+export type SelectionOp =
+  | { kind: "clear" }
+  | { kind: "fill"; pen: Pen }
+  | { kind: "flipHorizontal" }
+  | { kind: "flipVertical" }
+  | { kind: "move"; to: Point };
+
+/**
+ * Draws a shape as stroke `stroke`, replacing what the same stroke drew
+ * before: call it at each move of a drag, so the preview is the art itself
+ * and the drag is one undo step.
+ */
+export function drawShape(id: number, stroke: number, shape: Shape, pen: Pen): Promise<EditResult> {
+  return invoke<EditResult>("draw_shape", { id, stroke, shape, pen });
+}
+
+/** Fills the cell at `at` and every joined cell exactly like it. */
+export function floodFill(id: number, stroke: number, at: Point, pen: Pen): Promise<EditResult> {
+  return invoke<EditResult>("flood_fill", { id, stroke, at, pen });
+}
+
+/** The half-block brush along a line; `y` counts half rows. */
+export function halfBlock(id: number, stroke: number, from: Point, to: Point, color: number): Promise<EditResult> {
+  return invoke<EditResult>("half_block", { id, stroke, from, to, color });
+}
+
+export function selectionOp(id: number, stroke: number, rect: CellRect, op: SelectionOp): Promise<EditResult> {
+  return invoke<EditResult>("selection_op", { id, stroke, rect, op });
+}
+
+/** Copies cells to Stylus's clipboard (shared by every open document). Returns its size. */
+export function copyCells(id: number, rect: CellRect): Promise<{ width: number; height: number } | null> {
+  return invoke<{ width: number; height: number } | null>("copy_cells", { id, rect });
+}
+
+/** Pastes Stylus's clipboard at `at`; returns what changed and where the paste landed. */
+export function pasteCells(id: number, stroke: number, at: Point, transparent: boolean): Promise<[EditResult, CellRect | null]> {
+  return invoke<[EditResult, CellRect | null]>("paste_cells", { id, stroke, at, transparent });
 }

@@ -262,3 +262,99 @@
 :root[data-theme="ansiapps"] .link-btn { background: none; box-shadow: none; color: var(--dos-blue); text-decoration: underline; padding: 0; }
 :root[data-theme="ansiapps"] .dialog-box .link-btn:hover { background: none; color: var(--dos-black); }
 :root[data-theme="ansiapps"] .license-text { border: 1px solid var(--dos-black); color: var(--dos-black); background: var(--dos-white); }
+
+/* Art workspace (components/ArtEditor.tsx). Pairs from the contrast list:
+   black on light gray and on cyan for controls, light gray on blue and on
+   black for status text, white on red for a blocking loss. */
+:root[data-theme="ansiapps"] .toolbar-sep { background: var(--dos-lightcyan); }
+:root[data-theme="ansiapps"] .doc-name { color: var(--dos-white); }
+:root[data-theme="ansiapps"] .edited-mark { color: var(--dos-white); }
+:root[data-theme="ansiapps"] .tool-btn.selected { background: var(--dos-cyan); color: var(--dos-black); }
+:root[data-theme="ansiapps"] .tool-paint { color: var(--dos-lightgray); }
+:root[data-theme="ansiapps"] .tool-option,
+:root[data-theme="ansiapps"] .rail-heading { color: var(--dos-lightgray); }
+:root[data-theme="ansiapps"] .rail-section { border-top: 1px solid var(--dos-lightcyan); }
+:root[data-theme="ansiapps"] .art-editor-canvas:focus-visible .art-area { outline: 2px dashed var(--dos-white); }
+:root[data-theme="ansiapps"] .context-panel { padding-top: 16px; }
+:root[data-theme="ansiapps"] .panel-tabs { border-bottom: 1px solid var(--dos-lightgray); }
+:root[data-theme="ansiapps"] .panel-tab { box-shadow: none; background: transparent; color: var(--dos-lightgray); padding: 0 8px; }
+:root[data-theme="ansiapps"] .panel-tab.selected { background: var(--dos-cyan); color: var(--dos-black); }
+:root[data-theme="ansiapps"] .char-grid { background: var(--dos-black); border: 1px solid var(--dos-lightcyan); gap: 0; }
+:root[data-theme="ansiapps"] .char-cell { background: var(--dos-black); color: var(--dos-lightgray); box-shadow: none; height: 16px; line-height: 16px; }
+:root[data-theme="ansiapps"] .char-cell:hover { background: var(--dos-black); color: var(--dos-white); }
+:root[data-theme="ansiapps"] .char-cell.selected { background: var(--dos-cyan); color: var(--dos-black); }
+:root[data-theme="ansiapps"] .char-cell:active:not(:disabled) { transform: none; }
+/* Swatches show the art's colors; their F/B marks sit on a black cell. */
+:root[data-theme="ansiapps"] .swatch { box-shadow: none; border: 1px solid var(--dos-lightcyan); }
+:root[data-theme="ansiapps"] .swatch-mark { background: var(--dos-black); color: var(--dos-white); padding: 0 2px; }
+:root[data-theme="ansiapps"] .swatch.is-fg,
+:root[data-theme="ansiapps"] .swatch.is-bg { outline: 2px solid var(--dos-white); outline-offset: 1px; }
+:root[data-theme="ansiapps"] .swatch:active:not(:disabled) { transform: none; }
+:root[data-theme="ansiapps"] .fkey { background: var(--dos-black); color: var(--dos-white); box-shadow: none; padding: 0 6px; }
+:root[data-theme="ansiapps"] .fkey:hover { background: var(--dos-black); color: var(--dos-yellow); }
+:root[data-theme="ansiapps"] .fkey-name { color: var(--dos-lightgray); }
+:root[data-theme="ansiapps"] .fkey-set-label { color: var(--dos-lightgray); }
+:root[data-theme="ansiapps"] .pen-sample { border: 1px solid var(--dos-lightcyan); line-height: 1; }
+:root[data-theme="ansiapps"] .status-bar { background: var(--dos-blue); color: var(--dos-lightgray); border: none; border-top: 1px solid var(--dos-lightcyan); padding: 0 8px; }
+/* Text inputs are black command-line strips. */
+:root[data-theme="ansiapps"] .form-row input,
+:root[data-theme="ansiapps"] .form-row textarea,
+:root[data-theme="ansiapps"] .form-row select { background: var(--dos-black); color: var(--dos-lightgray); border: none; caret-color: var(--dos-white); }
+:root[data-theme="ansiapps"] .form-row span,
+:root[data-theme="ansiapps"] .sauce-fields legend,
+:root[data-theme="ansiapps"] .save-losses { color: var(--dos-black); }
+:root[data-theme="ansiapps"] .sauce-fields { border: 1px solid var(--dos-black); }
+:root[data-theme="ansiapps"] .sauce-fields .muted,
+:root[data-theme="ansiapps"] .save-losses .muted { color: var(--dos-blue); }
+:root[data-theme="ansiapps"] .loss-blocking { background: var(--dos-red); color: var(--dos-white); padding: 0 4px; }
+:root[data-theme="ansiapps"] .size-presets .selected { background: var(--dos-cyan); color: var(--dos-black); }
+:root[data-theme="ansiapps"] .dialog-box .toggle { color: var(--dos-black); }
+
+/* Menu bar (components/MenuBar.tsx): Turbo Vision's light-gray bar with
+   black text and blue access letters; the open menu and the item under
+   the pointer are green with black text. Pairs from the contrast list:
+   black on light gray, blue on light gray, black on green, black on cyan,
+   dark gray on light gray for disabled items. */
+:root[data-theme="ansiapps"] .menu-bar {
+  --panel: var(--dos-lightgray);
+  --panel-2: var(--dos-green);
+  --line: var(--dos-black);
+  --text: var(--dos-black);
+  --muted: var(--dos-blue);
+  background: var(--dos-lightgray);
+  color: var(--dos-black);
+  border: none;
+  border-radius: 0;
+  padding: 0 8px;
+}
+:root[data-theme="ansiapps"] .menu-app .accent { color: var(--dos-blue); }
+:root[data-theme="ansiapps"] .menu-title,
+:root[data-theme="ansiapps"] .menu-command { box-shadow: none; border-radius: 0; background: none; color: var(--dos-black); padding: 0 8px; }
+:root[data-theme="ansiapps"] .menu-title:hover,
+:root[data-theme="ansiapps"] .menu-title.open,
+:root[data-theme="ansiapps"] .menu-command:hover:not(:disabled),
+:root[data-theme="ansiapps"] .menu-command:focus-visible { background: var(--dos-green); color: var(--dos-black); }
+:root[data-theme="ansiapps"] .menu-title:active:not(:disabled),
+:root[data-theme="ansiapps"] .menu-command:active:not(:disabled) { transform: none; }
+:root[data-theme="ansiapps"] .access-letter { color: var(--dos-blue); text-decoration: none; }
+:root[data-theme="ansiapps"] .menu-title.open .access-letter,
+:root[data-theme="ansiapps"] .menu-title:hover .access-letter { color: var(--dos-black); }
+:root[data-theme="ansiapps"] .menu-dropdown {
+  top: 100%;
+  border: 2px solid var(--dos-black);
+  outline: 6px solid var(--dos-lightgray);
+  border-radius: 0;
+  padding: 0;
+  background: var(--dos-lightgray);
+  box-shadow: var(--dos-shadow);
+}
+:root[data-theme="ansiapps"] .menu-command:disabled { color: var(--dos-darkgray); opacity: 1; }
+:root[data-theme="ansiapps"] .menu-command:disabled .menu-shortcut { color: var(--dos-darkgray); }
+:root[data-theme="ansiapps"] .menu-shortcut { color: var(--dos-black); }
+:root[data-theme="ansiapps"] .menu-dropdown .menu-sep { background: var(--dos-black); margin: 3px 0; }
+:root[data-theme="ansiapps"] .menu-bar .view-tab { color: var(--dos-black); padding: 0 8px; }
+:root[data-theme="ansiapps"] .menu-bar .view-tab:hover { background: var(--dos-green); color: var(--dos-black); }
+:root[data-theme="ansiapps"] .menu-bar .view-tab.selected { background: var(--dos-cyan); color: var(--dos-black); }
+:root[data-theme="ansiapps"] .menu-bar .gear-btn { box-shadow: none; background: none; color: var(--dos-black); }
+:root[data-theme="ansiapps"] .menu-bar .gear-btn:hover { background: var(--dos-green); }
+:root[data-theme="ansiapps"] .status-bar .doc-name { color: var(--dos-white); font-size: inherit; font-weight: inherit; }

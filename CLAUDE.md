@@ -12,40 +12,37 @@ architectural change. This file is the condensed operating rules only.
 
 **`CHANGELOG.md`**: add a bullet whenever a change lands.
 
-## Current milestone: build step 2, the viewer (built, being checked)
+## Current milestone: Phase 1, open and draw (started 2026-09-30)
 
-Step 1 (scaffold) is done. stylus-core builds for wasm32 since icy_tools
-`2e4e2b1` (checked 2026-09-30; see "Open before step 2").
+The rollout is **`docs/roadmap.md`** (finalised 2026-09-30): 1 open and
+draw (first public beta), 2 theme workshop, 3 make and animate (1.0), 4
+everywhere and beyond, with a "Not planned" list of survey features
+Stylus won't build. The screen each phase builds is
+**`docs/ui-design.md`**: designed in 8×16 cells on the ANSIapps theme
+first, Art/Make/Theme/Lab workspaces, one Problems list, one command
+registry. The `ansi-art-app-roadmap-*.md` and
+`ansi-editor-ui-design-chatgpt.md` surveys are reference only. Tick
+roadmap items as they land, with the date.
 
-Step 2 is built (2026-09-29): open by dialog or drag and drop, every
-format icy_engine loads (`OPEN_EXTENSIONS` in `stylus-core/src/lib.rs`),
-SAUCE always shown, 9-px spacing, iCE (and real blinking without it),
-aspect correction and zoom. **Left before it's done:** the App Testing
-pass on real art, and the libansilove comparison
-(`scripts/compare-ansilove.sh`) against libansilove. **Checked
-2026-09-29** on six Sixteen Colors packs (162 files, 1995–2024, in the
-scratch folder, never the repo): every file renders, and all but 7 match
-ansilove's pixels exactly (the rest differ only in the intended ways
-listed in the script's header). The 7 were two icy_engine issues in
-`parser_sink.rs`, raised upstream as icy_tools#187 and **merged
-2026-09-29 as `be236b5` with the maintainer's choices**: DEL (0x7F) now
-prints ⌂ and iCE leaves 24-bit backgrounds alone, but **BEL (0x07) stays
-a control code** in art files too (ansilove draws •; icy_engine treats
-the ANSI format as terminal output, and `.XB` is the format for control
-glyphs). So files with BEL differ from ansilove by design. **Rechecked
-2026-09-30 at `2e4e2b1`** on six packs (128 files, fetched again into the
-scratch folder): all but 2 match, one being the BEL file
-(`blndr2024b/CHECS-FALKOR.ANS`). The other, `blndr2020/c-mfs -
-blender.ans` (162 columns, relies on wrapping), comes out 77 rows where
-ansilove and its SAUCE say 88; it renders the same at `b85e565`, so it's
-older than the upgrade and not yet explained. An ansilove bug also shows
-up in `.BIN` blink mode (the
-script's header; fix proposed as libansilove#28). Amiga ASCII (Topaz) isn't handled yet:
-icy_engine picks the font from SAUCE, so a `.ASC` without SAUCE opens in
-the IBM font.
+**Where Phase 1 is** (details in the roadmap): the viewer's open items
+are done except the App Testing pass on real art. The editor has its
+editing core with undo by stroke, New, Save and Save As in all seven
+formats with the loss warning and SAUCE fields, the corpus round trip,
+and every Phase 1 tool (Pencil, Eraser, Line, Rectangle, Box,
+Half-block, Type, Select, Fill, Pick) with selection (cut, copy, paste,
+move, flip, fill, clear), and the menu bar over one command registry.
+Next: the macOS native menu from that registry, recent files and
+autosave, PNG export, the contrast lint, and measuring
+the IPC hot path on the M1.
 
-Then editor, theme workshop, converters, animation, web app,
-Windows/Linux (steps 3–8 in the notes).
+**Viewer history, still true:** checked against libansilove on Sixteen
+Colors packs (`scripts/compare-ansilove.sh`, corpus in the scratch
+folder, never the repo); every difference is one listed in the script's
+header. icy_tools#187 (merged as `be236b5`): DEL prints ⌂, iCE leaves
+24-bit backgrounds alone, **BEL stays a control code** by the
+maintainer's choice, so files with BEL differ from ansilove. The
+"77 rows" file (`c-mfs - blender.ans`) was an EGA 8×14 font that ansilove
+draws at 16 px; Stylus is right.
 
 ## Non-negotiable rules
 
@@ -84,18 +81,34 @@ Windows/Linux (steps 3–8 in the notes).
 
 - `stylus-core/`: the Tauri-free Rust crate on icy_engine. All art logic
   goes here, never in `src-tauri`, so the web build shares it.
-  - `src/document.rs`: `Document`, a file opened for viewing: its info,
-    the render settings (9-px, iCE, aspect) and `render_rows`, which
-    renders a band of rows through icy_engine's renderer. Render modes
+  - `src/document.rs`: `Document`, a file opened for viewing and
+    editing: its info, the render settings (9-px, iCE, aspect),
+    `render_rows` (a band of rows through icy_engine's renderer) and
+    `render_cells` (just the cells an edit changed). UTF-8 text is shown
+    as CP437 codes, since the IBM fonts draw those. Render modes
     never change the data, except that iCE moves the attribute's high bit
     between blink and bright background, which is reversible. Parsed
     formats end at their last row with content; binary formats keep their
     height.
+  - `src/edit.rs`: editing. Stylus's own layer over icy_engine's buffer
+    (not `icy_engine_edit`: GUI, tokio and websocket dependencies). Cell
+    edits in strokes (one undo step per pencil drag or typed character),
+    resize, `save` through icy_engine's writers (`SAVE_FORMATS`, cell-exact,
+    one fresh SAUCE record with the file's date) and `save_losses`, the
+    plain-language list of what a format would lose. `TEXT_FONTS`: the
+    Amiga fonts for text files without SAUCE.
+  - `src/tools.rs`: the drawing tools and selection: shapes (`Shape`,
+    drawn with `draw_shape`, which retracts and redraws the same stroke
+    at each move of a drag), flood fill, the half-block brush, and
+    `Clip` / `SelectionOp` (copy, paste, move, flip with mirrored
+    characters, fill, clear). Every edit goes through `Document::commit`
+    in `edit.rs`.
   - `src/sauce.rs`: `SauceInfo`, every SAUCE field, decoded from CP437.
   - `src/convert/`: Image to ANSI. One module per ported open-source
     converter (each with its `ConverterInfo`: origin, license, commit,
     settings, adaptations) and its license text in `licenses/`; `grid.rs`
-    is the one `.ANS` writer (no line breaks: rows fill the SAUCE width);
+    is the converters' `.ANS` writer (no line breaks: rows fill the SAUCE
+    width; the editor saves through icy_engine);
     `util.rs`, `nfnt.rs`, `magick.rs` (ImageMagick) and `stbir.rs`
     (stb_image_resize2) hold the ported resamplers. Keep ports faithful
     to the original's arithmetic, and check a new one cell by cell
@@ -104,7 +117,8 @@ Windows/Linux (steps 3–8 in the notes).
     multiply-adds).
     `docs/image-to-ansi-converters.md` is the survey.
   - `examples/render_png.rs`, `examples/png_diff.rs`: for
-    `scripts/compare-ansilove.sh`.
+    `scripts/compare-ansilove.sh`. `examples/roundtrip.rs`: for
+    `scripts/roundtrip-corpus.sh` (open, save, reopen, compare pixels).
   - Later: converters, generators, the animation encoder, the contrast
     checker, the theme-pack model and `stylus-render`.
 - `src-tauri/src/lib.rs`: Tauri commands wrapping the core, for file I/O
@@ -118,13 +132,29 @@ Windows/Linux (steps 3–8 in the notes).
   of about 2048 px (one canvas can't hold a long ANSI), with a
   determinate progress bar over the rows. Aspect and zoom are CSS
   scaling. Blink alternates two frames once a second, never under reduced
-  motion. `SaucePanel.tsx` beside it.
+  motion. For editing it also redraws a rectangle of cells and reports
+  the cell under the pointer.
+- `src/components/ArtEditor.tsx`: the Art workspace (Phase 1):
+  tools and selection, F-key strip (`lib/cp437.ts` has the sets and the CP437 table for
+  labels), Character/Colors/SAUCE panel, status bar. Edits are queued so
+  they reach the core in order. `SaveDialog.tsx`: Save and Save As with
+  the loss list and SAUCE fields. `SaucePanel.tsx` shows the record.
+- `src/lib/commands.ts`: **the command registry**. `MENUS` names every
+  command, its shortcut and menu place; components hand in what can run
+  now with `useCommands` (run, enabled, checked); `CommandProvider` runs
+  the shortcuts (not in text fields or dialogs, and a disabled command
+  leaves the key alone). Add a command here, never a separate keydown
+  listener. `components/MenuBar.tsx` draws it (and `ShortcutList` for
+  Help); canvas-only keys (tool letters, Delete, Esc) are marked
+  `canvasKey` and handled by the canvas.
 - `src/components/ImageToAnsi.tsx`: the Image to ANSI tab (results drawn
   by `ArtThumb.tsx`). Dropping an image on the window opens it here;
-  dropping art opens it in the viewer.
-- `src/App.tsx`: the screen. `STARTUP_STEPS` feeds `StartupScreen`; add a
-  step for each launch-time load (font atlases, recent files, the theme
-  pack).
+  dropping art opens it in the Art workspace.
+- `src/App.tsx`: the screen: workspaces, the open document (with its
+  path, and whether Save may replace it), New, Save, the discard-changes
+  prompt, closing with unsaved changes. `STARTUP_STEPS` feeds
+  `StartupScreen`; add a step for each launch-time load (font atlases,
+  recent files, the theme pack).
 - `theme/`: the ANSIapps theme pack (MIT). Empty until step 4.
 - **Two themes, default flipped**: Stylus opens in **ANSIapps**, with
   modern as the option in the gear menu. Key `stylus.theme`; with nothing

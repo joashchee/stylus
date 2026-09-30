@@ -1,14 +1,16 @@
 /**
  * The file's SAUCE record, every field, always shown (Diskette's
  * docs/stylus-notes.md, "Opens"). Files without one say so, and which
- * defaults Stylus opened them with. Editing SAUCE comes with saving
- * (build step 3).
+ * defaults Stylus opened them with. A save writes the fields from the
+ * Save dialog (`SaveDialog`).
  */
 import type { DocumentInfo } from "../lib/backend";
 
 interface SaucePanelProps {
   name: string;
   info: DocumentInfo;
+  /** Inside another panel (the editor's context panel): no frame of its own. */
+  embedded?: boolean;
 }
 
 function Row({ label, value }: { label: string; value: string | number | null | undefined }) {
@@ -21,11 +23,11 @@ function Row({ label, value }: { label: string; value: string | number | null | 
   );
 }
 
-export function SaucePanel({ name, info }: SaucePanelProps) {
+export function SaucePanel({ name, info, embedded }: SaucePanelProps) {
   const sauce = info.sauce;
   return (
-    <aside className="panel sauce-panel" data-testid="sauce-panel">
-      <h2>SAUCE</h2>
+    <aside className={embedded ? "sauce-panel embedded" : "panel sauce-panel"} data-testid="sauce-panel">
+      {!embedded && <h2>SAUCE</h2>}
       {sauce ? (
         <dl className="info-list">
           <Row label="Title" value={sauce.title || "(none)"} />
