@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.3.0 (2026-09-30, unreleased)
+## 0.3.0 (2026-10-12), the first public beta
 
 - **Public betas for macOS, Windows and Linux** (2026-10-12), the way
   Coupler ships: GitHub Actions builds the Windows installers (NSIS and
