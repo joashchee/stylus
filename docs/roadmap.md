@@ -62,8 +62,9 @@ build from `scripts/build-release.sh`.
 
 **Goal:** Stylus opens every file it can, and you can draw, edit and
 save ANSI art by hand as well as in the classic editors' basics.
-**Release:** 0.x, the first public macOS beta on itch.io (Developer
-ID-signed, notarized, the in-development warning on).
+**Release:** 0.x public betas from 0.3.0 (decided 2026-10-12): GitHub
+releases for macOS (Developer ID-signed, notarized), Windows and Linux,
+linked from ansiapps.com, the in-development warning on. itch.io later.
 
 ### 1a. Finish the viewer (build step 2)
 
@@ -390,8 +391,9 @@ had: Stylus as a preservation and research tool.
   saved locally only, Cloudflare Pages static hosting, installable and
   offline (PWA). Solve rayon on wasm32 first (the maintainer offered to
   help).
-- [ ] **Windows and Linux** builds on GitHub Actions, filling in
-  `docs/platform-parity.md`.
+- [x] **Windows and Linux** builds on GitHub Actions (2026-10-12, brought
+  forward: public betas on all three from 0.3.0, as Coupler does).
+  `docs/platform-parity.md` fills in as each mechanism is checked there.
 
 ### 4b. Beyond (new; order to be set when 4a ships)
 

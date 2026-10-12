@@ -1,5 +1,5 @@
 [package]
-name = "app"
+name = "stylus"
 version = "0.3.0"
 description = "Stylus — ANSI art and animation, and the ANSIapps theme's workshop"
 authors = ["ansiapps"]

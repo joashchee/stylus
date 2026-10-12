@@ -56,7 +56,7 @@ import {
 } from "../lib/backend";
 import { cp437Char, cp437Code, CP437, FKEY_SETS } from "../lib/cp437";
 import type { ActivityUpdate } from "../lib/activity";
-import { useCommands, type Handlers } from "../lib/commands";
+import { shortcutLabel, useCommands, type Handlers } from "../lib/commands";
 import { HOT_PATH, hotPathLines, hotPathReport, moveQueued, resetHotPath } from "../lib/hotPath";
 import { Dialog } from "./Dialog";
 
@@ -860,10 +860,10 @@ export function ArtEditor({ art, onInfo, runActivity, onError, active }: ArtEdit
           )}
           <div className="rail-section" data-testid="selection-actions" aria-label="Selection">
             <span className="rail-heading">Selection</span>
-            <button type="button" className="small" disabled={!selection} onClick={() => void cut()} title="Cut (⌘X)">
+            <button type="button" className="small" disabled={!selection} onClick={() => void cut()} title={`Cut (${shortcutLabel("mod+x")})`}>
               Cut
             </button>
-            <button type="button" className="small" disabled={!selection} onClick={() => void copy()} title="Copy (⌘C)">
+            <button type="button" className="small" disabled={!selection} onClick={() => void copy()} title={`Copy (${shortcutLabel("mod+c")})`}>
               Copy
             </button>
             <button
@@ -872,7 +872,7 @@ export function ArtEditor({ art, onInfo, runActivity, onError, active }: ArtEdit
               data-testid="paste-button"
               disabled={!clip}
               onClick={() => paste(transparent)}
-              title="Paste at the selection or the cursor (⌘V; ⌥⌘V pastes transparent)"
+              title={`Paste at the selection or the cursor (${shortcutLabel("mod+v")}; ${shortcutLabel("mod+alt+v")} pastes transparent)`}
             >
               Paste
             </button>

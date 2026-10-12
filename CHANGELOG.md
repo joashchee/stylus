@@ -2,6 +2,16 @@
 
 ## 0.3.0 (2026-09-30, unreleased)
 
+- **Public betas for macOS, Windows and Linux** (2026-10-12), the way
+  Coupler ships: GitHub Actions builds the Windows installers (NSIS and
+  MSI) and the Linux .deb and .rpm on every version tag and publishes
+  them to the version's GitHub release (`dev` between versions), and the
+  Mac release script now builds a universal app (Apple Silicon and
+  Intel), signed with the Developer ID, notarized and zipped for the
+  same release. ansiapps.com links the newest files. The app's binary is
+  now `stylus` (it was `app`), and the selection buttons' tooltips show
+  Ctrl shortcuts off the Mac.
+
 - **Frames and layers in the document model** (2026-09-30): every
   document is now frames × layers in `stylus-core` (`src/frames.rs`),
   ready for Phase 3's timeline and Layers tab with no model or recovery

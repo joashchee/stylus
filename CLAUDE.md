@@ -245,14 +245,47 @@ with every feature, and check new UI in both themes.
 
 ## Build notes
 
-- Releases only through `scripts/build-release.sh` (strips `$HOME` paths
-  from the binary, same as Diskette). "Build the macOS app" means the
-  `.app` only (`scripts/build-release.sh --bundles app`); a DMG only on
-  request. Every release build is installed to `~/Applications/Stylus.app`
-  with `ditto`. Claude's sandbox can't write there, so when the script
-  reports it couldn't install, tell the user to run the `ditto` line.
-- A release must be Developer ID-signed and notarized (itch.io, and the
-  web app at `stylus.ansiapps.com`).
+- **Public betas, like Coupler's (decided 2026-10-12):** every release
+  is a GitHub release of this public repository, for macOS, Windows and
+  Linux, and ansiapps.com links its newest files (the site's
+  `scripts/app-releases.mjs`).
+- **The Mac: releases only through `scripts/build-release.sh`**, ported
+  from Coupler's. It builds universal (Apple Silicon and Intel), signs
+  with the maintainer's Developer ID and the hardened runtime, notarizes
+  with notarytool's keychain profile (`stylus`, or
+  `STYLUS_NOTARY_PROFILE`) and staples; strips `$HOME` paths and fails if
+  any survive or if any of universal, signed, notarized or Gatekeeper's
+  yes is missing; zips the app for the release
+  (`Stylus_<version>_universal.app.zip`, beside the app). The one-time
+  setup is in its header; `STYLUS_UNSIGNED=1` tries a build without it,
+  never for a release. No Apple credential is ever in the repo or the
+  environment. "Build the macOS app" means the `.app` only
+  (`scripts/build-release.sh --bundles app`); a DMG only on request.
+  Every release build is installed to `~/Applications/Stylus.app` with
+  `ditto`. Claude's sandbox can't write there, nor see the keychain's
+  signing identity, so the user runs release builds.
+- **Windows and Linux**: GitHub Actions, `.github/workflows/windows.yml`
+  (NSIS and MSI) and `linux.yml` (.deb and .rpm; never an AppImage, it
+  bundles LGPL WebKitGTK), by Run workflow or a `v*` tag, unsigned. Every
+  successful run on `main` or a `v*` tag is published to a release by
+  `scripts/publish-release.sh`: the version's own (`v` +
+  `tauri.conf.json`'s version, made at that commit if missing, its notes
+  the version's CHANGELOG section), or the `dev` prerelease once that tag
+  marks an earlier commit. The Mac's notarized `.app.zip` is uploaded to
+  the version's release by hand
+  (`gh release upload v<version> src-tauri/target/universal-apple-darwin/release/bundle/macos/Stylus_<version>_universal.app.zip`).
+  **Releasing is pushing the tag**: a push to a branch runs a workflow
+  only when its own file changed, so a version bump on `main` builds
+  nothing. Bump, date the CHANGELOG heading, commit, merge to `main`,
+  push, then push `v<version>` on that commit (`git tag -a v0.3.0 -m
+  ...`); both workflows build and publish the release, and the Mac's zip
+  joins it. Then redeploy ansiapps.com.
+- **GitHub Actions only where it's free and unlimited** (Coupler's rule):
+  this repository stays public, standard GitHub-hosted runners only
+  (`ubuntu-*`, `windows-*`, `macos-*` by their plain labels), never a
+  larger or self-hosted runner, no paid action or outside service, the
+  cache at the free 10 GB default. If the repository ever goes private,
+  the workflows stop first.
 - **In Claude's sandbox**, `~/.cargo` and `~/.rustup` aren't writable:
   cargo can't fetch git dependencies (icy_tools) into the normal cache, and
   `rustup target add` fails. Run cargo with `CARGO_HOME` pointed at the
