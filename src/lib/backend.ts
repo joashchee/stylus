@@ -468,6 +468,22 @@ export function onNativeMenu(run: (id: string) => void): Promise<() => void> {
   return listen<string>("native-menu", (e) => run(e.payload));
 }
 
+/** Apple Pencil's double-tap or squeeze, and the action chosen for it in iPadOS's Settings (src-tauri's pencil.rs). */
+export interface PencilGesture {
+  gesture: "tap" | "squeeze";
+  action: "switchEraser" | "switchPrevious" | "showColorPalette" | "showInkAttributes" | "showContextualPalette" | "ignore";
+}
+
+/** Calls back on each Apple Pencil double-tap or squeeze (iPad only). */
+export function onPencil(run: (gesture: PencilGesture) => void): Promise<() => void> {
+  return listen<PencilGesture>("pencil", (e) => run(e.payload));
+}
+
+/** Whether iPadOS's "Only Draw with Apple Pencil" is on; `null` where it isn't known (before iPadOS 17.5, and off the iPad). */
+export function pencilOnlyDrawing(): Promise<boolean | null> {
+  return invoke<boolean | null>("pencil_only_drawing").catch(() => null);
+}
+
 /** The recent files, newest first. */
 export function recentFiles(): Promise<string[]> {
   return invoke<string[]>("recent_files");

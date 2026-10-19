@@ -1,0 +1,103 @@
+/* The tablet and phone layouts (docs/ui-design.md, "Phones, tablets and
+   pens"; lib/formFactor.ts sets the attributes). Each is its own layout in
+   8×16 cells, not a reflow of the desktop one: the desktop layout is
+   App.css alone, and everything here applies only under data-touch or
+   data-drawers. Loaded after the theme so its sizes win in both themes.
+
+   - data-touch: tablet and phone. Touch targets are at least 48 px (3 rows
+     of cells, Apple's 44 pt and Android's 48 dp), except the character
+     grid, a dense picker whose characters the F-key strip also types.
+   - data-drawers: a phone, or a tablet held upright. The tool rail is a
+     strip above the canvas and the context panel a drawer over its foot. */
+
+/* Shown only in the layouts they belong to (whatever display they'd have). */
+:root:not([data-touch]) .touch-only,
+:root:not([data-drawers]) .drawer-only,
+:root[data-touch] .desktop-only { display: none !important; }
+
+/* The field that brings up the on-screen keyboard for Type (ArtEditor):
+   there but unseen. 16 px text stops iOS zooming in when it's focused. */
+.art-editor-canvas { position: relative; }
+.touch-keyboard { position: absolute; top: 0; left: 0; width: 1px; height: 1px; padding: 0; border: 0; opacity: 0; font-size: 16px; pointer-events: none; }
+
+/* The cell under a pen held over the screen: white inside black, outside the
+   cell, readable on any art and apart from the text cursor. */
+.pen-hover { position: absolute; pointer-events: none; box-shadow: 0 0 0 1px #fff, 0 0 0 2px #000; }
+
+/* ---- Tablet and phone ---- */
+
+/* No double-tap zoom, no text selection or callouts on long presses. */
+:root[data-touch] { touch-action: manipulation; -webkit-text-size-adjust: 100%; }
+:root[data-touch] .tool-rail,
+:root[data-touch] .fkey-strip,
+:root[data-touch] .swatches,
+:root[data-touch] .char-grid,
+:root[data-touch] .menu-bar,
+:root[data-touch] .art-stack { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+
+/* The notch and the home indicator. */
+:root[data-touch] .app {
+  padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+}
+
+:root[data-touch] button,
+:root[data-touch] select,
+:root[data-touch] .menu-title,
+:root[data-touch] .menu-command,
+:root[data-touch] .dialog-actions button,
+:root[data-touch] .gear-menu .menu-item { min-height: 48px; }
+:root[data-touch] .tool-btn,
+:root[data-touch] .fkey { display: inline-flex; align-items: center; justify-content: center; }
+:root[data-touch] .fkey { min-width: 48px; }
+:root[data-touch] .tool-option { min-height: 48px; }
+:root[data-touch] .tool-option input[type="checkbox"] { width: 24px; height: 24px; }
+:root[data-touch] .swatch { height: 48px; }
+:root[data-touch] .char-cell { height: 32px; line-height: 32px; }
+:root[data-touch] .panel-tab { min-height: 48px; padding: 0 12px; }
+:root[data-touch] .problem { min-height: 48px; }
+:root[data-touch] .recent-list .link-btn { min-height: 48px; }
+
+/* The menu bar scrolls sideways rather than wrapping its titles. */
+:root[data-touch] .menu-bar { flex-wrap: wrap; }
+:root[data-touch] .menu-titles { flex-wrap: nowrap; overflow-x: auto; }
+/* The menus' panels open below their item, never off the screen's edge. */
+:root[data-touch] .menu-dropdown { max-width: calc(100vw - 16px); max-height: calc(100dvh - 120px); overflow-y: auto; }
+:root[data-touch] .menu-submenu { position: static; box-shadow: none; margin: 0 0 4px 16px; }
+
+/* The F-key strip and the status bar keep one line and scroll. */
+:root[data-touch] .fkey-strip,
+:root[data-touch] .status-bar { flex-wrap: nowrap; overflow-x: auto; white-space: nowrap; }
+
+/* Tablet held sideways: the desktop's three columns, with room for 48 px
+   tools in two columns (24 cells) and a 40-cell panel. */
+:root[data-form="tablet"]:not([data-drawers]) .editor-layout { grid-template-columns: 192px minmax(0, 1fr) 320px; }
+:root[data-form="tablet"]:not([data-drawers]) .tool-rail { display: grid; grid-template-columns: 1fr 1fr; width: 192px; gap: 4px; align-content: start; }
+:root[data-form="tablet"]:not([data-drawers]) .tool-rail > :not(.tool-btn) { grid-column: 1 / -1; }
+:root[data-form="tablet"]:not([data-drawers]) .art-editor-canvas .art-area { max-height: calc(100dvh - 220px); }
+
+/* ---- Drawers: phone, and tablet held upright ---- */
+
+:root[data-drawers] .editor-layout { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+/* The rail: one strip of tools and actions above the canvas, scrolled sideways. */
+:root[data-drawers] .tool-rail { flex-direction: row; align-items: center; width: auto; overflow-x: auto; gap: 4px; padding-bottom: 2px; }
+:root[data-drawers] .tool-rail > * { flex: 0 0 auto; }
+:root[data-drawers] .tool-paint { flex-direction: row; align-items: center; margin: 0 4px; }
+:root[data-drawers] .tool-paint select { width: auto; }
+:root[data-drawers] .rail-section { flex-direction: row; align-items: center; margin: 0 0 0 4px; padding: 0 0 0 8px; border-top: none; border-left: 1px solid var(--line); }
+:root[data-drawers] .art-editor-canvas .art-area { max-height: calc(100dvh - 240px); }
+:root[data-drawers] .art-editor-canvas .art-area.fit-window { height: calc(100dvh - 240px); }
+
+/* The context panel: a drawer over the foot of the screen, shown at once
+   (panels never ease in, docs/ui-design.md). */
+:root[data-drawers] .context-panel { display: none; }
+:root[data-drawers] .context-panel.open {
+  display: block;
+  position: fixed; z-index: 25; left: 0; right: 0; bottom: 0; top: auto;
+  max-height: 60dvh; overflow-y: auto; margin: 0;
+  padding: 12px max(12px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+}
+
+/* ---- Phone ---- */
+
+:root[data-form="phone"] .workspaces { margin-left: auto; }
+:root[data-form="phone"] .art-editor-canvas .art-area { max-height: calc(100dvh - 260px); }

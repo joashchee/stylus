@@ -11,6 +11,7 @@
 import { useEffect, useState } from "react";
 import { onNativeMenu, setNativeMenu, type NativeItem, type NativeMenuSpec } from "./backend";
 import { IS_MAC, itemEnabled, menuItems, MENUS, useMenuState, type MenuItem } from "./commands";
+import { IS_MOBILE } from "./formFactor";
 
 type Focus = NativeMenuSpec["focus"];
 
@@ -74,12 +75,13 @@ export function useNativeMenu() {
   const key = JSON.stringify(spec);
 
   useEffect(() => {
-    if (!IS_MAC || !inTauri) return;
+    // The Mac only: iPadOS looks like a Mac to the webview, but has no menu bar.
+    if (!IS_MAC || IS_MOBILE || !inTauri) return;
     setNativeMenu(JSON.parse(key) as NativeMenuSpec).catch((e) => console.error("native menu:", e));
   }, [key]);
 
   useEffect(() => {
-    if (!IS_MAC || !inTauri) return;
+    if (!IS_MAC || IS_MOBILE || !inTauri) return;
     const unlisten = onNativeMenu((id) => {
       if (!dialogOpen()) registry.run(id);
     });

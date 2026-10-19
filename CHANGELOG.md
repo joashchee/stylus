@@ -1,5 +1,27 @@
 # Changelog
 
+## Unreleased
+
+- **Phones, tablets and pens** (2026-10-19), from the Gemini UI strategy
+  survey (`docs/multiplatform-ui-strategy-gemini.md`; what was taken and
+  what wasn't is in `docs/ui-design.md`): three discrete layouts,
+  desktop, tablet and phone, each drawn in 8×16 cells and picked from
+  the device (or in the View menu), with 48 px touch targets, the
+  context panel as a drawer on phones and upright tablets, and
+  safe-area insets. One input layer for mouse, pen and finger: palm
+  rejection once a pen has drawn (or with iPadOS's "Only Draw with
+  Apple Pencil"), a pen's barrel button as the right button and its
+  eraser end as the Eraser, the cell under a hovering pen outlined,
+  every coalesced move drawn, two-finger pan, pinch zoom, and two- and
+  three-finger taps for undo and redo. Apple Pencil's double-tap and
+  squeeze do what Settings says (eraser, last tool, colors). Draw →
+  Switch to Last Tool is new, touch and hold on a swatch sets the
+  background, and the Type tool can bring up the on-screen keyboard.
+  The Tauri side builds for iOS and Android: the macOS menu bar is
+  desktop only, the first-run warning shows over a blank window there,
+  and picked files may be `file://` URLs. Built for iOS (2026-10-19),
+  not yet run on a device; saving on phones and tablets is still to come.
+
 ## 0.3.0 (2026-10-12), the first public beta
 
 - **Public betas for macOS, Windows and Linux** (2026-10-12), the way

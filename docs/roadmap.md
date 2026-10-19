@@ -394,6 +394,22 @@ had: Stylus as a preservation and research tool.
 - [x] **Windows and Linux** builds on GitHub Actions (2026-10-12, brought
   forward: public betas on all three from 0.3.0, as Coupler does).
   `docs/platform-parity.md` fills in as each mechanism is checked there.
+- [ ] **iPhone, iPad and Android** (new, 2026-10-19, from the Gemini
+  survey `multiplatform-ui-strategy-gemini.md`): the same app, with the
+  tablet and phone layouts and pen input of `docs/ui-design.md`
+  ("Phones, tablets and pens").
+  - [x] Tablet and phone layouts, the input layer for mouse, pen and
+    finger (palm rejection, hover, coalesced moves, pan, pinch, undo
+    taps), Apple Pencil's double-tap and squeeze, the on-screen keyboard
+    for Type, and the first-run warning over a blank window (2026-10-19).
+  - [ ] Build and run on an iPad, an iPhone and an Android phone and
+    tablet; App Testing's "Phones, tablets and pens" items.
+  - [ ] Files: opening works with the picker's copy on iOS; Save and
+    Save As (the share sheet on iOS, `content://` on Android) and
+    Android's opening still need the fs plugin's mobile paths.
+  - [ ] Distribution: TestFlight for iOS (betas are fine there; the App
+    Store's guideline 2.2 isn't), APKs on the GitHub release for Android,
+    and their rows in `docs/platform-parity.md`.
 
 ### 4b. Beyond (new; order to be set when 4a ships)
 

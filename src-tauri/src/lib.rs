@@ -16,7 +16,11 @@ use tauri::{AppHandle, Manager, State};
 
 mod files;
 mod first_run;
+// The menu bar is desktop only: phones and tablets use the in-window one.
+#[cfg(desktop)]
 mod native_menu;
+#[cfg(target_os = "ios")]
+mod pencil;
 
 /// Art the user has open, by id. The frontend holds only ids.
 #[derive(Default)]
@@ -80,7 +84,7 @@ fn open_extensions() -> Vec<&'static str> {
 async fn open_art(path: String, library: State<'_, Shared>) -> Result<OpenedArt, String> {
     let library = library.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
-        let path = Path::new(&path);
+        let path = local_path(&path);
         let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
         let extension = path.extension().map(|e| e.to_string_lossy().into_owned()).unwrap_or_default();
         let data = std::fs::read(path).map_err(|e| format!("Couldn't read {name}: {e}"))?;
@@ -626,7 +630,18 @@ fn export_app_testing_report(path: String, report: String) -> Result<(), String>
     std::fs::write(&path, report).map_err(|e| e.to_string())
 }
 
+/// A picked file as a path. The file picker on phones and tablets gives a
+/// `file://` URL (on iOS, of the copy it makes in the app's own folder).
+fn local_path(picked: &str) -> std::path::PathBuf {
+    tauri::Url::parse(picked)
+        .ok()
+        .filter(|url| url.scheme() == "file")
+        .and_then(|url| url.to_file_path().ok())
+        .unwrap_or_else(|| Path::new(picked).to_path_buf())
+}
+
 /// Creates the main window, once the first-run warning is accepted.
+#[cfg(desktop)]
 fn start(app: &AppHandle) {
     let config = &app.config().app.windows[0];
     tauri::WebviewWindowBuilder::from_config(app, config)
@@ -634,23 +649,62 @@ fn start(app: &AppHandle) {
         .expect("failed to create the main window");
 }
 
+/// Phones and tablets: the window, holding a blank page in the theme's blue
+/// (`public/first-run.html`) until the first-run warning is answered, since
+/// a dialog there can only be shown over a window. Then the app itself.
+#[cfg(mobile)]
+fn open_window(app: &AppHandle, page: &str) -> tauri::WebviewWindow {
+    let mut config = app.config().app.windows[0].clone();
+    config.url = tauri::WebviewUrl::App(page.into());
+    let window = tauri::WebviewWindowBuilder::from_config(app, &config)
+        .and_then(|builder| builder.build())
+        .expect("failed to create the main window");
+    #[cfg(target_os = "ios")]
+    pencil::attach(&window);
+    window
+}
+
+#[cfg(mobile)]
+fn start(app: &AppHandle) {
+    let Some(window) = app.get_webview_window("main") else {
+        open_window(app, "index.html");
+        return;
+    };
+    let opened = window
+        .url()
+        .map_err(|e| e.to_string())
+        .and_then(|url| url.join("index.html").map_err(|e| e.to_string()))
+        .and_then(|url| window.navigate(url).map_err(|e| e.to_string()));
+    if let Err(e) = opened {
+        log::error!("couldn't open Stylus after the first-run warning: {e}");
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_log::Builder::new().level(log::LevelFilter::Info).build())
-        .manage(Shared::default())
+        .manage(Shared::default());
+    #[cfg(desktop)]
+    let builder = builder
         .manage(native_menu::NativeMenu::default())
-        .on_menu_event(|app, event| native_menu::on_menu_event(app, event.id().as_ref()))
+        .on_menu_event(|app, event| native_menu::on_menu_event(app, event.id().as_ref()));
+    builder
         .setup(|app| {
             let app_data_dir = app.path().app_data_dir().expect("failed to resolve app data dir");
             app.manage(files::AppData::new(app_data_dir.clone()));
             // The main window has `"create": false` in tauri.conf.json, so
             // nothing is drawn until the first-run warning is answered.
             if first_run::accepted(&app_data_dir) {
+                #[cfg(desktop)]
                 start(app.handle());
+                #[cfg(mobile)]
+                open_window(app.handle(), "index.html");
             } else {
+                #[cfg(mobile)]
+                open_window(app.handle(), "first-run.html");
                 first_run::ask(app.handle(), &app_data_dir, start);
             }
             Ok(())
@@ -702,7 +756,10 @@ pub fn run() {
             files::discard_recovery,
             files::recoverable,
             files::recover,
-            native_menu::set_native_menu
+            #[cfg(desktop)]
+            native_menu::set_native_menu,
+            #[cfg(target_os = "ios")]
+            pencil::pencil_only_drawing
         ])
         .run(tauri::generate_context!())
         .expect("error while running Stylus");

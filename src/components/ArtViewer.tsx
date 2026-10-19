@@ -16,12 +16,15 @@
  * - Editing (ArtEditor): `redraw` re-renders just the cells an edit
  *   changed, and the pointer callbacks report the cell under the pointer,
  *   from the art's displayed size, so zoom and aspect need no maths here.
+ *   Mouse, pen and finger go through lib/pen.ts: strokes, hover, and the
+ *   fingers' pan, pinch and undo taps.
  * - Fit Window gives the area its full height (it otherwise shrinks to
  *   short art) and scales the art to fit both ways.
  */
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type ReactNode } from "react";
 import { renderBand, renderCells, type CellRect, type DocumentInfo } from "../lib/backend";
 import type { ActivityUpdate } from "../lib/activity";
+import { PenRouter, type Gesture, type StrokeInput } from "../lib/pen";
 
 /** Band height in pixels; each band is one canvas. */
 const BAND_PX = 2048;
@@ -39,12 +42,15 @@ export interface Cell {
   half?: number;
 }
 
-/** Pointer events on the art, in cells. Only when editing. */
+/** Pointer events on the art, in cells, from mouse, pen or finger (lib/pen.ts). Only when editing. */
 export interface ArtPointerHandlers {
-  onCellDown: (cell: Cell, event: ReactPointerEvent<HTMLDivElement>) => void;
-  onCellMove: (cell: Cell, event: ReactPointerEvent<HTMLDivElement>) => void;
-  onCellUp: (event: ReactPointerEvent<HTMLDivElement>) => void;
+  onCellDown: (cell: Cell, input: StrokeInput) => void;
+  /** A move during a stroke, or the pointer hovering (a mouse, or a pen over the screen). */
+  onCellMove: (cell: Cell, input: StrokeInput) => void;
+  onCellUp: () => void;
   onLeave?: () => void;
+  /** Fingers: two-finger tap (undo), three-finger tap (redo), pinch (zoom). */
+  onGesture?: (gesture: Gesture) => void;
 }
 
 export interface ArtViewerHandle {
@@ -87,6 +93,9 @@ export const ArtViewer = forwardRef<ArtViewerHandle, ArtViewerProps>(function Ar
   const stackRef = useRef<HTMLDivElement>(null);
   const [area, setArea] = useState({ width: 0, height: 0 });
   const [blinkVisible, setBlinkVisible] = useState(true);
+  const pointerRef = useRef(pointer);
+  pointerRef.current = pointer;
+  const router = useRef<PenRouter<Cell> | null>(null);
 
   // Render every band, "on" frames first, then the blink "off" frames.
   useEffect(() => {
@@ -176,14 +185,29 @@ export const ArtViewer = forwardRef<ArtViewerHandle, ArtViewerProps>(function Ar
   // Pixelated when enlarging keeps cells crisp; shrinking reads better smoothed.
   const rendering = scale >= 1 ? "pixelated" : "auto";
 
-  function cellAt(event: ReactPointerEvent<HTMLDivElement>): Cell {
-    const rect = event.currentTarget.getBoundingClientRect();
+  function cellAt(event: PointerEvent): Cell {
+    const rect = stackRef.current?.getBoundingClientRect() ?? new DOMRect();
     const x = Math.floor(((event.clientX - rect.left) / rect.width) * info.columns);
     const fy = (event.clientY - rect.top) / rect.height;
     const y = Math.floor(fy * info.rows);
     const half = Math.min(Math.max(Math.floor(fy * info.rows * 2), 0), info.rows * 2 - 1);
     return { x: Math.min(Math.max(x, 0), info.columns - 1), y: Math.min(Math.max(y, 0), info.rows - 1), half };
   }
+
+  // The router outlives renders; it reaches the newest handlers and sizes through refs.
+  const cellAtRef = useRef(cellAt);
+  cellAtRef.current = cellAt;
+  if (!router.current) {
+    router.current = new PenRouter<Cell>({
+      cellAt: (e) => cellAtRef.current(e),
+      onDown: (cell, input) => pointerRef.current?.onCellDown(cell, input),
+      onMove: (cell, input) => pointerRef.current?.onCellMove(cell, input),
+      onUp: () => pointerRef.current?.onCellUp(),
+      onGesture: (g) => pointerRef.current?.onGesture?.(g),
+      onPan: (dx, dy) => areaRef.current?.scrollBy(-dx, -dy),
+    });
+  }
+  const pen = router.current;
 
   return (
     <div className={`art-area${zoom === "window" ? " fit-window" : ""}`} ref={areaRef} data-testid="art-area">
@@ -193,15 +217,11 @@ export const ArtViewer = forwardRef<ArtViewerHandle, ArtViewerProps>(function Ar
         style={{ width: displayWidth }}
         aria-label={`${name}, ${info.columns} by ${info.rows} characters`}
         role="img"
-        onPointerDown={
-          pointer &&
-          ((e) => {
-            e.currentTarget.setPointerCapture(e.pointerId);
-            pointer.onCellDown(cellAt(e), e);
-          })
-        }
-        onPointerMove={pointer && ((e) => pointer.onCellMove(cellAt(e), e))}
-        onPointerUp={pointer && ((e) => pointer.onCellUp(e))}
+        onPointerDown={pointer && ((e) => pen.down(e.nativeEvent, e.currentTarget))}
+        onPointerMove={pointer && ((e) => pen.move(e.nativeEvent))}
+        onPointerUp={pointer && ((e) => pen.up(e.nativeEvent))}
+        // The system took the pointer (a swipe from the edge): the stroke ends there.
+        onPointerCancel={pointer && ((e) => pen.up(e.nativeEvent))}
         onPointerLeave={pointer?.onLeave}
         onContextMenu={pointer && ((e) => e.preventDefault())}
       >

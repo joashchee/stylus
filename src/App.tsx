@@ -49,6 +49,7 @@ import {
   type RenderSettings,
 } from "./lib/backend";
 import { applyTheme, loadTheme, type Theme } from "./lib/theme";
+import { useFormFactor } from "./lib/formFactor";
 import { useCommands, type Handlers } from "./lib/commands";
 
 /**
@@ -106,6 +107,8 @@ const STARTUP_LABELS: Record<StartupStep, string> = {
 function App() {
   const [startupPending, setStartupPending] = useState<StartupStep[]>([...STARTUP_STEPS]);
   const [theme, setTheme] = useState<Theme>(loadTheme);
+  /** Desktop, tablet or phone (lib/formFactor.ts), picked from the device or in the View menu. */
+  const layout = useFormFactor();
   const [gearOpen, setGearOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -305,6 +308,10 @@ function App() {
     "colors.ice": { run: () => void changeSettings({ iceColors: !art?.info.settings.iceColors }), enabled: onArt, checked: !!art?.info.settings.iceColors },
     "view.letterSpacing": { run: () => void changeSettings({ letterSpacing: !art?.info.settings.letterSpacing }), enabled: onArt, checked: !!art?.info.settings.letterSpacing },
     "view.aspect": { run: () => void changeSettings({ aspectRatio: !art?.info.settings.aspectRatio }), enabled: onArt, checked: !!art?.info.settings.aspectRatio },
+    "view.layoutAuto": { run: () => layout.choose("auto"), checked: layout.choice === "auto" },
+    "view.layoutDesktop": { run: () => layout.choose("desktop"), checked: layout.choice === "desktop" },
+    "view.layoutTablet": { run: () => layout.choose("tablet"), checked: layout.choice === "tablet" },
+    "view.layoutPhone": { run: () => layout.choose("phone"), checked: layout.choice === "phone" },
     "help.shortcuts": { run: () => setShortcutsOpen(true) },
     "help.about": { run: () => setAboutOpen(true) },
   };
@@ -575,6 +582,7 @@ function App() {
             runActivity={runActivity}
             onError={setError}
             active={view === "art" && saveMode === null && !newOpen && !exportOpen && discardThen === null && !recoverOpen}
+            drawers={layout.drawers}
           />
         ) : (
           <section className="panel empty-state">

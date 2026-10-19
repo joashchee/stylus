@@ -151,7 +151,10 @@ draws at 16 px; Stylus is right.
   `recent.json` and `Recovery/` autosaves (never the user's file).
 - `src-tauri/src/first_run.rs`: the in-development warning on first run
   (`docs/ansiapps-theme.md`). The main window is `"create": false` and
-  built in `setup` only once it's accepted.
+  built in `setup` only once it's accepted. On iOS and Android a dialog
+  needs a window, so there the window holds `public/first-run.html` (blank
+  blue) until OK. `native_menu.rs` is `cfg(desktop)`; `pencil.rs` is iOS
+  only (Apple Pencil's double-tap and squeeze, a `UIPencilInteraction`).
 - `src/lib/backend.ts`: the one frontend adapter over the core (Tauri now;
   WASM for the web app; the desktop editor stays on IPC, measured on the
   M1).
@@ -162,6 +165,13 @@ draws at 16 px; Stylus is right.
   scaling. Blink alternates two frames once a second, never under reduced
   motion. For editing it also redraws a rectangle of cells and reports
   the cell under the pointer.
+- **Phones, tablets and pens** (`docs/ui-design.md`): three discrete
+  layouts, `lib/formFactor.ts` (desktop, tablet, phone; `data-form`,
+  `data-touch`, `data-drawers` on `<html>`) and `src/touch.css` (the
+  desktop is `App.css` alone; never reflow it by width). Mouse, pen and
+  finger reach the tools through `lib/pen.ts` (`StrokeInput`, gestures,
+  palm rejection), never raw pointer events. Not a fixed, scaled virtual
+  canvas: the survey's reasons for not adopting it are in ui-design.
 - `src/components/ArtEditor.tsx`: the Art workspace (Phase 1):
   tools and selection, F-key strip (`lib/cp437.ts` has the sets and the CP437 table for
   labels), Character/Colors/SAUCE panel, status bar. Edits are queued so

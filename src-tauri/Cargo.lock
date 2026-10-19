@@ -4732,6 +4732,8 @@ name = "stylus"
 version = "0.3.0"
 dependencies = [
  "log",
+ "objc2",
+ "objc2-ui-kit",
  "serde",
  "serde_json",
  "stylus-core",

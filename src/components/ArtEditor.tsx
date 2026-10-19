@@ -23,11 +23,20 @@
  * graphics short of the contrast list's ratios in the Problems tab and
  * marks their cells on the canvas; it's checked again after every edit.
  *
+ * Phones and tablets (docs/ui-design.md, "Phones, tablets and pens"): the
+ * art takes mouse, pen and finger alike (lib/pen.ts). A pen's barrel button
+ * is the right button, its eraser end erases, and a pen held over the
+ * screen outlines the cell it's over. Apple Pencil's double-tap and squeeze
+ * do what iPadOS's Settings say (switch to the eraser or the last tool, or
+ * show the colors). Where the layout makes the context panel a drawer,
+ * Show Panel opens it, and the Type tool has a Keyboard button for the
+ * on-screen keyboard.
+ *
  * Dev builds time the pencil's hot path (lib/hotPath.ts): each stroke's
  * numbers go to the console, and Help → Measure Drawing Speed runs a fast
  * drag at 400% and shows them.
  */
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { ArtViewer, CellBox, CellGrid, type ArtViewerHandle, type Cell, type Zoom } from "./ArtViewer";
 import { SaucePanel } from "./SaucePanel";
 import {
@@ -38,7 +47,9 @@ import {
   drawShape,
   floodFill,
   halfBlock,
+  onPencil,
   pasteCells,
+  pencilOnlyDrawing,
   redo as redoEdit,
   resizeArt,
   selectionOp,
@@ -51,6 +62,7 @@ import {
   type EditResult,
   type OpenedArt,
   type Pen,
+  type PencilGesture,
   type SelectionOp,
   type Shape,
 } from "../lib/backend";
@@ -58,6 +70,8 @@ import { cp437Char, cp437Code, CP437, FKEY_SETS } from "../lib/cp437";
 import type { ActivityUpdate } from "../lib/activity";
 import { shortcutLabel, useCommands, type Handlers } from "../lib/commands";
 import { HOT_PATH, hotPathLines, hotPathReport, moveQueued, resetHotPath } from "../lib/hotPath";
+import { IS_MOBILE } from "../lib/formFactor";
+import { pensOnly, type Gesture, type StrokeInput } from "../lib/pen";
 import { Dialog } from "./Dialog";
 
 type RunActivity = <T>(label: string, task: (update: ActivityUpdate) => Promise<T>, key?: string) => Promise<T>;
@@ -137,6 +151,9 @@ function clampRect(rect: CellRect, info: DocumentInfo): CellRect | null {
 
 const ZOOMS: Zoom[] = [1, 2, 3, 4];
 
+/** Touch and hold on a swatch this long for the background. */
+const HOLD_SWATCH_MS = 450;
+
 /** A drag in progress on the canvas. */
 type Drag =
   | { kind: "paint"; last: Cell; erase: boolean }
@@ -153,9 +170,11 @@ interface ArtEditorProps {
   onError: (message: string) => void;
   /** Only the visible workspace offers its commands. */
   active: boolean;
+  /** The context panel is a drawer over the canvas (a phone, a tablet held upright; lib/formFactor.ts). */
+  drawers: boolean;
 }
 
-export function ArtEditor({ art, onInfo, runActivity, onError, active }: ArtEditorProps) {
+export function ArtEditor({ art, onInfo, runActivity, onError, active, drawers }: ArtEditorProps) {
   const { info } = art;
   const viewer = useRef<ArtViewerHandle>(null);
   const queue = useRef<Promise<unknown>>(Promise.resolve());
@@ -167,6 +186,11 @@ export function ArtEditor({ art, onInfo, runActivity, onError, active }: ArtEdit
   const anchor = useRef<Cell | null>(null);
   /** The tool Esc goes back to from Type. */
   const lastTool = useRef<Tool>("pencil");
+  /** The tool before this one, for Switch to Last Tool (and Apple Pencil's double-tap). */
+  const previousTool = useRef<Tool>("pencil");
+  const canvasRef = useRef<HTMLDivElement>(null);
+  /** The hidden field that brings up the on-screen keyboard for Type. */
+  const keyboardRef = useRef<HTMLInputElement>(null);
   const infoRef = useRef(info);
   infoRef.current = info;
 
@@ -177,7 +201,12 @@ export function ArtEditor({ art, onInfo, runActivity, onError, active }: ArtEdit
   const [bg, setBg] = useState(0);
   const [fkeySet, setFkeySet] = useState(0);
   const [cursor, setCursor] = useState<Cell>({ x: 0, y: 0 });
-  const [hover, setHover] = useState<{ cell: Cell; info: CellInfo | null } | null>(null);
+  const [hover, setHover] = useState<{ cell: Cell; info: CellInfo | null; pen: boolean } | null>(null);
+  /** The context panel drawer, where the layout has one. */
+  const [panelOpen, setPanelOpen] = useState(false);
+  /** Touch and hold on a swatch sets the background (the right-click of touch). */
+  const holdTimer = useRef(0);
+  const heldSwatch = useRef(false);
   const [zoom, setZoom] = useState<Zoom>(2);
   const [grid, setGrid] = useState(false);
   const [preview, setPreview] = useState(false);
@@ -218,8 +247,46 @@ export function ArtEditor({ art, onInfo, runActivity, onError, active }: ArtEdit
 
   function chooseTool(t: Tool) {
     if (t === "type" && tool !== "type") lastTool.current = tool;
+    if (t !== tool) previousTool.current = tool;
     setTool(t);
   }
+
+  // Apple Pencil's double-tap and squeeze (iPad), as iPadOS's Settings say.
+  const pencilRef = useRef<(g: PencilGesture) => void>(() => undefined);
+  pencilRef.current = (g: PencilGesture) => {
+    switch (g.action) {
+      case "switchEraser":
+        chooseTool(tool === "eraser" ? previousTool.current : "eraser");
+        return;
+      case "switchPrevious":
+        chooseTool(previousTool.current);
+        return;
+      case "showColorPalette":
+      case "showContextualPalette":
+        setTab("colors");
+        setPanelOpen((open) => !open || tab !== "colors");
+        return;
+      case "showInkAttributes":
+        setTab("character");
+        setPanelOpen((open) => !open || tab !== "character");
+        return;
+    }
+  };
+  useEffect(() => {
+    if (!IS_MOBILE || !active) return;
+    const unlisten = onPencil((g) => pencilRef.current(g)).catch(() => () => undefined);
+    return () => void unlisten.then((f) => f());
+  }, [active]);
+
+  // iPadOS's "Only Draw with Apple Pencil": fingers never draw.
+  useEffect(() => {
+    if (IS_MOBILE) void pencilOnlyDrawing().then((on) => on && pensOnly());
+  }, []);
+
+  // Leaving a drawer layout closes the drawer, so it isn't open on return.
+  useEffect(() => {
+    if (!drawers) setPanelOpen(false);
+  }, [drawers]);
 
   // Without iCE, backgrounds are the eight dark colors.
   useEffect(() => {
@@ -419,12 +486,12 @@ export function ArtEditor({ art, onInfo, runActivity, onError, active }: ArtEdit
   /** Resolves once every queued edit is drawn and its move timed. */
   const drawingDone = () => enqueue(async () => undefined).then(() => new Promise((resolve) => setTimeout(resolve, 0)));
 
-  /** Shows the cell under the pointer in the status bar. */
-  function showHover(cell: Cell) {
-    if (hover && hover.cell.x === cell.x && hover.cell.y === cell.y) return;
-    setHover({ cell, info: null });
+  /** Shows the cell under the pointer in the status bar, and outlines it for a pen held over the screen. */
+  function showHover(cell: Cell, pen = false) {
+    if (hover && hover.cell.x === cell.x && hover.cell.y === cell.y && hover.pen === pen) return;
+    setHover({ cell, info: null, pen });
     void cellAt(art.id, cell.x, cell.y).then(
-      (c) => setHover((h) => (h && h.cell.x === cell.x && h.cell.y === cell.y ? { cell, info: c } : h)),
+      (c) => setHover((h) => (h && h.cell.x === cell.x && h.cell.y === cell.y ? { ...h, info: c } : h)),
       () => undefined,
     );
   }
@@ -688,16 +755,42 @@ export function ArtEditor({ art, onInfo, runActivity, onError, active }: ArtEdit
     "view.preview": { run: () => setPreview((v) => !v), checked: preview },
     "view.describeCell": { run: () => void describeCell() },
     "view.contrastLint": { run: () => setLint(!lint), checked: lint },
+    "view.panel": { run: () => setPanelOpen((open) => !open), enabled: drawers, checked: drawers && panelOpen },
+    "tool.previous": { run: () => chooseTool(previousTool.current) },
   };
   if (HOT_PATH) handlers["help.dev.measureDrawing"] = { run: () => void measureDrawing(), label: "Measure Drawing Speed (dev)" };
   for (const t of TOOLS) handlers[`tool.${t.id}`] = { run: () => chooseTool(t.id), checked: tool === t.id };
   useCommands("art-editor", active ? handlers : {});
 
+  /** Opens the on-screen keyboard (phones and tablets): Type's keys come through the hidden field. */
+  function showKeyboard() {
+    keyboardRef.current?.focus({ preventScroll: true });
+  }
+
+  /** Text from an on-screen keyboard that sends no key codes (Android): typed at the cursor. */
+  function onKeyboardInput(e: FormEvent<HTMLInputElement>) {
+    const field = e.currentTarget;
+    for (const ch of field.value) {
+      const c = cp437Code(ch);
+      if (c !== null) typeCode(c);
+    }
+    field.value = "";
+  }
+
   const pointer = {
-    onCellDown(cell: Cell, e: ReactPointerEvent<HTMLDivElement>) {
-      (e.currentTarget.closest(".art-editor-canvas") as HTMLElement | null)?.focus();
-      const right = e.button === 2;
-      if (tool === "pick" || e.altKey) {
+    onCellDown(cell: Cell, input: StrokeInput) {
+      // The art takes the keyboard, unless the on-screen one is up for Type.
+      if (document.activeElement !== keyboardRef.current) canvasRef.current?.focus({ preventScroll: true });
+      if (drawers) setPanelOpen(false);
+      const right = input.alternate;
+      if (input.eraser) {
+        // A pen's eraser end erases, whatever the tool.
+        drag.current = { kind: "paint", last: cell, erase: true };
+        stroke.current += 1;
+        paintMove([paintEdit(cell, true)], input.timeStamp);
+        return;
+      }
+      if (tool === "pick" || input.pick) {
         void pick(cell);
         return;
       }
@@ -705,6 +798,7 @@ export function ArtEditor({ art, onInfo, runActivity, onError, active }: ArtEdit
         case "type":
           moveCursor(cell);
           deselect();
+          if (input.pointerType === "touch") showKeyboard();
           return;
         case "pencil":
         case "eraser": {
@@ -712,7 +806,7 @@ export function ArtEditor({ art, onInfo, runActivity, onError, active }: ArtEdit
           drag.current = { kind: "paint", last: cell, erase };
           stroke.current += 1;
           if (HOT_PATH) resetHotPath();
-          paintMove([paintEdit(cell, erase)], e.timeStamp);
+          paintMove([paintEdit(cell, erase)], input.timeStamp);
           return;
         }
         case "line":
@@ -752,9 +846,9 @@ export function ArtEditor({ art, onInfo, runActivity, onError, active }: ArtEdit
           return;
       }
     },
-    onCellMove(cell: Cell, e: ReactPointerEvent<HTMLDivElement>) {
-      showHover(cell);
+    onCellMove(cell: Cell, input: StrokeInput) {
       const d = drag.current;
+      showHover(cell, !d && input.pointerType === "pen");
       if (!d) return;
       switch (d.kind) {
         case "paint": {
@@ -763,7 +857,7 @@ export function ArtEditor({ art, onInfo, runActivity, onError, active }: ArtEdit
           d.last = cell;
           paintMove(
             cells.map((c) => paintEdit(c, d.erase)),
-            e.timeStamp,
+            input.timeStamp,
           );
           return;
         }
@@ -815,6 +909,12 @@ export function ArtEditor({ art, onInfo, runActivity, onError, active }: ArtEdit
     onLeave() {
       setHover(null);
     },
+    onGesture(g: Gesture) {
+      if (g === "undo" && info.canUndo) void undo();
+      else if (g === "redo" && info.canRedo) void redo();
+      else if (g === "zoomIn") zoomBy(1);
+      else if (g === "zoomOut") zoomBy(-1);
+    },
   };
 
   const bgCount = info.settings.iceColors ? 16 : 8;
@@ -838,6 +938,21 @@ export function ArtEditor({ art, onInfo, runActivity, onError, active }: ArtEdit
               {t.label}
             </button>
           ))}
+          <button
+            type="button"
+            className={`tool-btn drawer-only${panelOpen ? " selected" : ""}`}
+            aria-pressed={panelOpen}
+            aria-controls="context-panel"
+            data-testid="panel-toggle"
+            onClick={() => setPanelOpen((open) => !open)}
+          >
+            Panel
+          </button>
+          {tool === "type" && (
+            <button type="button" className="tool-btn touch-only" data-testid="keyboard-button" onClick={showKeyboard}>
+              Keyboard
+            </button>
+          )}
           <label className="tool-paint" title="What the tools and typing change">
             <span>Paints</span>
             <select data-testid="paint-mode" value={paint} onChange={(e) => setPaint(e.currentTarget.value as PaintMode)}>
@@ -896,6 +1011,7 @@ export function ArtEditor({ art, onInfo, runActivity, onError, active }: ArtEdit
         </nav>
 
         <div
+          ref={canvasRef}
           className={`art-editor-canvas tool-${tool}`}
           tabIndex={0}
           role="application"
@@ -903,6 +1019,19 @@ export function ArtEditor({ art, onInfo, runActivity, onError, active }: ArtEdit
           data-testid="art-canvas"
           onKeyDown={onCanvasKey}
         >
+          {/* Focused for Type on phones and tablets, so the on-screen keyboard comes up; its keys reach onCanvasKey. */}
+          <input
+            ref={keyboardRef}
+            className="touch-keyboard"
+            aria-hidden="true"
+            tabIndex={-1}
+            autoCapitalize="off"
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
+            enterKeyHint="enter"
+            onInput={onKeyboardInput}
+          />
           <ArtViewer
             ref={viewer}
             id={art.id}
@@ -917,6 +1046,7 @@ export function ArtEditor({ art, onInfo, runActivity, onError, active }: ArtEdit
                 <>
                   {grid && <CellGrid info={info} />}
                   <CellBox info={info} rect={{ x: cursor.x, y: cursor.y, width: 1, height: 1 }} className="text-cursor" />
+                  {hover?.pen && <CellBox info={info} rect={{ x: hover.cell.x, y: hover.cell.y, width: 1, height: 1 }} className="pen-hover" />}
                   {selection && (
                     <CellBox
                       info={info}
@@ -932,7 +1062,7 @@ export function ArtEditor({ art, onInfo, runActivity, onError, active }: ArtEdit
           />
         </div>
 
-        <aside className="panel context-panel" data-testid="context-panel">
+        <aside id="context-panel" className={`panel context-panel${panelOpen ? " open" : ""}`} data-testid="context-panel">
           <div className="panel-tabs" role="tablist">
             {PANEL_TABS.map((t) => (
               <button
@@ -968,7 +1098,8 @@ export function ArtEditor({ art, onInfo, runActivity, onError, active }: ArtEdit
           )}
           {tab === "colors" && (
             <div className="color-panel" data-testid="color-panel">
-              <p className="desc">Click for the foreground, right-click (or Shift-click) for the background.</p>
+              <p className="desc desktop-only">Click for the foreground, right-click (or Shift-click) for the background.</p>
+              <p className="desc touch-only">Tap for the foreground, touch and hold for the background.</p>
               <div className="swatches">
                 {VGA_COLORS.map((color, i) => (
                   <button
@@ -978,7 +1109,22 @@ export function ArtEditor({ art, onInfo, runActivity, onError, active }: ArtEdit
                     style={{ background: color }}
                     aria-label={`${COLOR_NAMES[i]}${fg === i ? ", foreground" : ""}${bg === i ? ", background" : ""}`}
                     data-testid={`swatch-${i}`}
-                    onClick={(e) => (e.shiftKey ? i < bgCount && setBg(i) : setFg(i))}
+                    onClick={(e) => {
+                      if (heldSwatch.current) heldSwatch.current = false;
+                      else if (e.shiftKey) i < bgCount && setBg(i);
+                      else setFg(i);
+                    }}
+                    onPointerDown={(e) => {
+                      if (e.pointerType === "mouse") return;
+                      window.clearTimeout(holdTimer.current);
+                      heldSwatch.current = false;
+                      holdTimer.current = window.setTimeout(() => {
+                        heldSwatch.current = true;
+                        if (i < bgCount) setBg(i);
+                      }, HOLD_SWATCH_MS);
+                    }}
+                    onPointerUp={() => window.clearTimeout(holdTimer.current)}
+                    onPointerLeave={() => window.clearTimeout(holdTimer.current)}
                     onContextMenu={(e) => {
                       e.preventDefault();
                       if (i < bgCount) setBg(i);

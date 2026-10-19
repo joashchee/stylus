@@ -368,6 +368,82 @@ kept together and out of the everyday UI:
   its only menu bar. Touch gets the drawers and a larger strip; drawing
   with a finger or pen uses the same tools.
 
+## Phones, tablets and pens (2026-10-19)
+
+Stylus on iPhone, iPad and Android, and with pens on any of them and on
+Windows, from the same code. Drawn from the Gemini survey
+`multiplatform-ui-strategy-gemini.md`; what was kept and what wasn't is
+at the end of this section.
+
+**Three layouts, not one that reflows.** Desktop, tablet and phone are
+discrete profiles (`src/lib/formFactor.ts`), each laid out in 8×16 cells
+(`src/touch.css`; the desktop is `App.css` alone, unchanged). The device
+picks one: a touch-first screen is a tablet, or a phone when its short
+side is under 600 px; a Mac, Windows or Linux window stays the desktop
+layout however small it's made. View → Automatic, Desktop, Tablet or
+Phone Layout chooses by hand (a touch laptop, or checking a layout on the
+Mac), remembered.
+
+| | Desktop | Tablet, sideways | Tablet upright, phone |
+|---|---|---|---|
+| Tool rail | 12 cells wide, one column | 24 cells, tools in two columns | a strip above the canvas, scrolled sideways |
+| Context panel | 35 cells, beside the canvas | 40 cells, beside the canvas | a drawer over the canvas's foot (the rail's Panel button, View → Show Panel); drawing closes it |
+| Touch targets | the theme's sizes | 48 px (3 rows) at least | the same |
+| Menu bar, F-keys, status bar | wrap | one line each, scrolled sideways | the same |
+| Typing | the keyboard | the Type tool's Keyboard button (or a tap) brings up the on-screen keyboard | the same |
+
+Turning a tablet switches between its two layouts; that's the only
+layout change that happens by itself. The notch and the home indicator
+are kept clear (safe-area insets). Double-tap zoom, text selection and
+long-press callouts are off on the tool rail, strip and art.
+
+**One input layer** (`src/lib/pen.ts`): the tools get strokes, never
+devices.
+
+| Input | Mouse | Pen (Apple Pencil, Surface Pen, Wacom…) | Finger |
+|---|---|---|---|
+| Stroke | left button | the tip | one finger, until a pen has drawn |
+| Second color, or erase (the right-click) | right button | the barrel button | — |
+| Erase whatever the tool | — | the eraser end | — |
+| Hover: the cell under it in the status bar | moving | held over the screen (Apple Pencil on the iPads that sense it, most Windows pens), with an outline on the cell | — |
+| Pan | scroll | — | two fingers |
+| Zoom | View menu, ⌘+ ⌘− | — | pinch, one zoom step per 1.3× spread |
+| Undo, redo | ⌘Z, ⇧⌘Z | — | two-finger tap, three-finger tap |
+| Pick | Option-click, the Pick tool | the Pick tool | the Pick tool |
+| Background color | right-click a swatch | touch and hold a swatch | touch and hold a swatch |
+
+- **Palm rejection:** once a pen has drawn, fingers only pan, zoom and
+  tap gestures, so a hand resting on the screen draws nothing. iPadOS's
+  own "Only Draw with Apple Pencil" setting does it from the start.
+- **A finger waits 90 ms** before its stroke starts, so a second finger
+  arriving makes a gesture instead of a dot; moving off at once starts
+  it straight away.
+- **Every move counts:** the moves a pen makes between display frames
+  (`getCoalescedEvents`) all reach the tools, so a fast curve at 240 Hz
+  keeps every cell it crossed.
+- **Pressure and tilt** are read but not used: a cell holds one
+  character, so there is nothing for pressure to vary. A pressure-to-shade
+  brush (░▒▓█) is a Phase 3 candidate, not a promise.
+- **Apple Pencil's double-tap and squeeze** (`src-tauri/src/pencil.rs`,
+  a `UIPencilInteraction` on the webview) do what Settings → Apple Pencil
+  says: switch to the eraser and back, switch to the last tool (Draw →
+  Switch to Last Tool, the same command), or show the Colors (or, for
+  "ink attributes", the Character) tab.
+
+### What was kept from the Gemini survey, and what wasn't
+
+| Survey | Stylus |
+|---|---|
+| **Explicit form-factor profiles**, not fluid widths | Kept: desktop, tablet, phone, each drawn on purpose. |
+| **Input abstraction layer**, intents not devices | Kept: `lib/pen.ts`, feeding the tools and the command registry. |
+| **48 dp touch targets, no hover on touch, long press for the secondary action** | Kept. |
+| **A fixed, non-resizable 1280×720 desktop window** | Not adopted. Art is any size, from 80×25 to thousands of rows, and people size the window to it; the window keeps its 640×480 minimum and resizes freely. |
+| **A fixed virtual canvas scaled by a CSS transform** | Not adopted. Scaling the whole UI by a fraction blurs the 8×16 font (the theme draws it at whole pixels only), would scale the art a second time on top of its own zoom, and fights the system's text size and zoom for accessibility. Each layout is sized in whole cells instead. |
+| **Absolute X, Y positions for every element** | Not adopted, for the same reasons: the cell grid gives the fixed look without fixed coordinates. |
+| **Orientation locked to portrait; system bars hidden** | Not adopted. Wide art reads better sideways, and a tablet is drawn on both ways; the layout follows the turn instead. Bars stay, kept clear with safe-area insets. |
+| **One `handle_ui_intent` command for all UI actions** | Not adopted. The command registry (`lib/commands.ts`) already names every action once; the Rust side keeps its typed commands, one per core call. |
+| **`DesktopCanvas` / `MobileCanvas` component trees** | Not adopted. One component tree, with the layouts in CSS, so no feature exists on one form factor only. |
+
 ## Phase by phase
 
 | Phase | The UI gains |
@@ -375,7 +451,7 @@ kept together and out of the everyday UI:
 | **1** | Menu bar (and the macOS native one), workspace switcher (Art, Make), document tabs, tool rail, the strip, context panel (Character, Colors, SAUCE, Properties, Problems), status bar, the command registry, Save As loss warning. The Viewer tab goes; `ArtViewer` becomes the Art canvas |
 | **2** | Theme workspace, Role tool, contrast info in Colors, the rail's icons redrawn as theme-pack icons |
 | **3** | Timeline, Animation menu, Layers tab, reference image, Make's Image/ASCII/Generate tabs, TDF/FIGlet in the Text tool, stamps, palette editing, **command palette** (⌘K, from the registry) and **custom shortcuts**, since 1.0 has more commands than the menus show at a glance |
-| **4** | Lab workspace, emulation profile in the status bar, diagnostics in Problems, responsive drawers for the web app and small windows |
+| **4** | Lab workspace, emulation profile in the status bar, diagnostics in Problems, responsive drawers for the web app and small windows (the tablet and phone layouts' drawers, 2026-10-19, are the start) |
 
 ## Not adopted
 

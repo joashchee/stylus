@@ -4,6 +4,7 @@ import App from "./App";
 import { CommandProvider } from "./lib/commands";
 import "./index.css";
 import "./ansiapps-theme.css";
+import "./touch.css";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
